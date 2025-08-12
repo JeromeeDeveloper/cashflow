@@ -23,56 +23,56 @@
                 <li class="sidebar-title">Menu</li>
 
                 @if(Auth::user()->role === 'admin')
-                    <li class="sidebar-item active">
+                    <li class="sidebar-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
                         <a href="{{ route('admin.dashboard') }}" class='sidebar-link'>
                             <i class="bi bi-grid-fill"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <li class="sidebar-item">
+                    <li class="sidebar-item {{ request()->routeIs('admin.setup') ? 'active' : '' }}">
                         <a href="{{ route('admin.setup') }}" class='sidebar-link'>
                             <i class="bi bi-stack"></i>
                             <span>Setup</span>
                         </a>
                     </li>
-                    <li class="sidebar-item has-sub">
+                    <li class="sidebar-item has-sub {{ request()->routeIs('admin.users') ? 'active' : '' }}">
                         <a href="#" class='sidebar-link'>
                             <i class="bi bi-people"></i>
                             <span>Users</span>
                         </a>
                         <ul class="submenu">
-                            <li class="submenu-item">
+                            <li class="submenu-item {{ request()->routeIs('admin.users') ? 'active' : '' }}">
                                 <a href="{{ route('admin.users') }}">Users Datatable</a>
                             </li>
                         </ul>
                     </li>
                 @elseif(Auth::user()->role === 'head')
-                    <li class="sidebar-item active">
+                    <li class="sidebar-item {{ request()->routeIs('head.dashboard') ? 'active' : '' }}">
                         <a href="{{ route('head.dashboard') }}" class='sidebar-link'>
                             <i class="bi bi-grid-fill"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <li class="sidebar-item">
-                        <a href="#" class='sidebar-link'>
+                    <li class="sidebar-item {{ request()->routeIs('head.file') ? 'active' : '' }}">
+                        <a href="{{ route('head.file') }}" class='sidebar-link'>
                             <i class="bi bi-bar-chart"></i>
                             <span>File Upload</span>
                         </a>
                     </li>
-                     <li class="sidebar-item">
-                        <a href="#" class='sidebar-link'>
-                            <i class="bi-cash-stack"></i>
+                     <li class="sidebar-item {{ request()->routeIs('head.cashflow') ? 'active' : '' }}">
+                        <a href="{{ route('head.cashflow') }}" class='sidebar-link'>
+                            <i class="bi bi-cash-stack"></i>
                             <span>Cash Flow</span>
                         </a>
                     </li>
                 @elseif(Auth::user()->role === 'branch')
-                    <li class="sidebar-item active">
+                    <li class="sidebar-item {{ request()->routeIs('branch.dashboard') ? 'active' : '' }}">
                         <a href="{{ route('branch.dashboard') }}" class='sidebar-link'>
                             <i class="bi bi-grid-fill"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <li class="sidebar-item">
+                    <li class="sidebar-item {{ request()->routeIs('branch.cashflow') ? 'active' : '' }}">
                         <a href="{{ route('branch.cashflow') }}" class='sidebar-link'>
                             <i class="bi bi-cash-stack"></i>
                             <span>Cash Flow</span>

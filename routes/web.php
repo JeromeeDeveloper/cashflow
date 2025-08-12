@@ -6,6 +6,8 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Branch\CashflowController as BranchCashflowController;
 use App\Http\Controllers\Admin\SetupController;
 use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Head\FileController;
+use App\Http\Controllers\Head\CashflowController as HeadCashflowController;
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -23,6 +25,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
 Route::prefix('head')->name('head.')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/file', [FileController::class, 'index'])->name('file');
+    Route::get('/cashflow', [HeadCashflowController::class, 'index'])->name('cashflow');
 });
 
 Route::prefix('branch')->name('branch.')->group(function () {
