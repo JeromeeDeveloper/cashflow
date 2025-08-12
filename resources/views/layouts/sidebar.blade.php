@@ -29,16 +29,11 @@
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <li class="sidebar-item has-sub">
-                        <a href="#" class='sidebar-link'>
+                    <li class="sidebar-item">
+                        <a href="{{ route('admin.setup') }}" class='sidebar-link'>
                             <i class="bi bi-stack"></i>
                             <span>Setup</span>
                         </a>
-                        <ul class="submenu">
-                            <li class="submenu-item">
-                                <a href="component-alert.html">Chart of Accounts</a>
-                            </li>
-                        </ul>
                     </li>
                     <li class="sidebar-item has-sub">
                         <a href="#" class='sidebar-link'>
@@ -47,7 +42,7 @@
                         </a>
                         <ul class="submenu">
                             <li class="submenu-item">
-                                <a href="component-alert.html">Users Datatable</a>
+                                <a href="{{ route('admin.users') }}">Users Datatable</a>
                             </li>
                         </ul>
                     </li>
@@ -78,7 +73,7 @@
                         </a>
                     </li>
                     <li class="sidebar-item">
-                        <a href="#" class='sidebar-link'>
+                        <a href="{{ route('branch.cashflow') }}" class='sidebar-link'>
                             <i class="bi bi-cash-stack"></i>
                             <span>Cash Flow</span>
                         </a>
