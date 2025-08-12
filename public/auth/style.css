@@ -558,3 +558,8 @@ body::before {
         flex-direction: column;
     }
 }
+
+img {
+    height: auto;
+    width: 16rem;
+}
