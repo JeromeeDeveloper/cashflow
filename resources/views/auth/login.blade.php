@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Elegant Portfolio Login</title>
+    <title>Cashflow Planning System</title>
     <link rel="stylesheet" href="{{ asset('auth/style.css') }}">
 </head>
 <body>

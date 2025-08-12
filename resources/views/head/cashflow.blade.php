@@ -34,31 +34,24 @@
                     <h3>Cash Flow</h3>
                     <p class="text-subtitle text-muted">Consolidated cash flow data from all branches</p>
                 </div>
-                <div class="d-flex align-items-center gap-2">
-                    <input type="month" id="reporting_period" class="form-control" style="min-width: 220px;" value="{{ date('Y-m') }}">
-                    <select id="branch_filter" class="form-select" style="max-width: 150px;">
-                        <option value="">All Branches</option>
-                        <option value="main">Main Office</option>
-                        <option value="branch1">Branch 1</option>
-                        <option value="branch2">Branch 2</option>
-                        <option value="branch3">Branch 3</option>
-                    </select>
-                    <button id="btnRefresh" class="btn btn-outline-secondary"><i class="bi bi-arrow-clockwise me-2"></i>Refresh</button>
-                    <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export</button>
-                </div>
             </div>
 
             <div class="page-content">
                 <section class="row">
                     <div class="col-12 col-lg-8">
                         <div class="card">
-                            <div class="card-header d-flex align-items-center justify-content-between">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <h4 class="mb-0">Cash Flow Summary</h4>
-                                <div class="d-flex gap-2">
-                                    <div class="input-group">
-                                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                        <input type="text" class="form-control" placeholder="Search accounts...">
+                                <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <div class="input-group" style="max-width: 280px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+                                        <input type="month" id="reporting_period" class="form-control" value="{{ date('Y-m') }}">
                                     </div>
+                                    <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export</button>
+                                    <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center px-3" data-bs-toggle="tooltip" data-bs-placement="top" title="Using the selected period, the system will generate a consolidated cashflow.">
+                                        <i class="bi bi-lightning-charge-fill text-warning me-2"></i>
+                                        Generates cashflow
+                                    </span>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -227,42 +220,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <div class="card">
-                            <div class="card-header">
-                                <h4>Quick Actions</h4>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-grid gap-2">
-                                    <button class="btn btn-outline-primary" id="btnAddEntry">
-                                        <i class="bi bi-plus-circle me-2"></i>Add Entry
-                                    </button>
-                                    <button class="btn btn-outline-info" id="btnBulkEdit">
-                                        <i class="bi bi-pencil-square me-2"></i>Bulk Edit
-                                    </button>
-                                    <button class="btn btn-outline-warning" id="btnValidate">
-                                        <i class="bi bi-check2-circle me-2"></i>Validate Data
-                                    </button>
-                                    <button class="btn btn-outline-success" id="btnApprove">
-                                        <i class="bi bi-check-lg me-2"></i>Approve Period
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header">
-                                <h4>Notes & Comments</h4>
-                            </div>
-                            <div class="card-body">
-                                <textarea class="form-control" rows="4" placeholder="Add notes or comments for this period..."></textarea>
-                                <div class="d-flex justify-content-end mt-3">
-                                    <button class="btn btn-primary" id="btnSaveNotes">
-                                        <i class="bi bi-save me-2"></i>Save Notes
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </section>
             </div>
@@ -277,6 +234,12 @@
     <script src="{{ asset('assets/js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Enable Bootstrap tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
             // Initialize DataTable
             const cashflowTable = document.querySelector('#table-cashflow');
             if (cashflowTable && window.simpleDatatables) {
@@ -285,34 +248,39 @@
 
             // Branch filter functionality
             const branchFilter = document.getElementById('branch_filter');
-            branchFilter.addEventListener('change', function() {
-                const selectedBranch = this.value;
-                // Filter table rows based on selected branch
-                const rows = document.querySelectorAll('#table-cashflow tbody tr');
-                rows.forEach(row => {
-                    const branchCell = row.cells[3]; // Branch column
-                    if (!selectedBranch || branchCell.textContent.trim() === selectedBranch ||
-                        (selectedBranch === 'main' && branchCell.textContent.trim() === 'Main Office')) {
-                        row.style.display = '';
-                    } else {
-                        row.style.display = 'none';
-                    }
+            if (branchFilter) {
+                branchFilter.addEventListener('change', function() {
+                    const selectedBranch = this.value;
+                    // Filter table rows based on selected branch
+                    const rows = document.querySelectorAll('#table-cashflow tbody tr');
+                    rows.forEach(row => {
+                        const branchCell = row.cells[3]; // Branch column
+                        if (!selectedBranch || branchCell.textContent.trim() === selectedBranch ||
+                            (selectedBranch === 'main' && branchCell.textContent.trim() === 'Main Office')) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                    // Recalculate totals for filtered data
+                    recalculateTotals();
                 });
-                // Recalculate totals for filtered data
-                recalculateTotals();
-            });
+            }
 
             // Refresh button
-            document.getElementById('btnRefresh').addEventListener('click', function() {
-                this.disabled = true;
-                this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Refreshing...';
+            const refreshBtn = document.getElementById('btnRefresh');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    this.disabled = true;
+                    this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Refreshing...';
 
-                setTimeout(() => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Refresh';
-                    alert('Data refreshed successfully!');
-                }, 1500);
-            });
+                    setTimeout(() => {
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Refresh';
+                        alert('Data refreshed successfully!');
+                    }, 1500);
+                });
+            }
 
             // Export button
             document.getElementById('btnExport').addEventListener('click', function() {
@@ -321,26 +289,31 @@
             });
 
             // Quick action buttons
-            document.getElementById('btnAddEntry').addEventListener('click', function() {
+            const addEntryBtn = document.getElementById('btnAddEntry');
+            if (addEntryBtn) addEntryBtn.addEventListener('click', function() {
                 alert('Add Entry functionality - implement modal or redirect');
             });
 
-            document.getElementById('btnBulkEdit').addEventListener('click', function() {
+            const bulkEditBtn = document.getElementById('btnBulkEdit');
+            if (bulkEditBtn) bulkEditBtn.addEventListener('click', function() {
                 alert('Bulk Edit functionality - implement multi-select and edit');
             });
 
-            document.getElementById('btnValidate').addEventListener('click', function() {
+            const validateBtn = document.getElementById('btnValidate');
+            if (validateBtn) validateBtn.addEventListener('click', function() {
                 alert('Data validation in progress...');
                 // Add validation logic here
             });
 
-            document.getElementById('btnApprove').addEventListener('click', function() {
+            const approveBtn = document.getElementById('btnApprove');
+            if (approveBtn) approveBtn.addEventListener('click', function() {
                 if (confirm('Are you sure you want to approve this period? This action cannot be undone.')) {
                     alert('Period approved successfully!');
                 }
             });
 
-            document.getElementById('btnSaveNotes').addEventListener('click', function() {
+            const saveNotesBtn = document.getElementById('btnSaveNotes');
+            if (saveNotesBtn) saveNotesBtn.addEventListener('click', function() {
                 alert('Notes saved successfully!');
             });
 

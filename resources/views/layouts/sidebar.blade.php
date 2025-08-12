@@ -31,20 +31,15 @@
                     </li>
                     <li class="sidebar-item {{ request()->routeIs('admin.setup') ? 'active' : '' }}">
                         <a href="{{ route('admin.setup') }}" class='sidebar-link'>
-                            <i class="bi bi-stack"></i>
+                            <i class="bi bi-gear"></i>
                             <span>Setup</span>
                         </a>
                     </li>
-                    <li class="sidebar-item has-sub {{ request()->routeIs('admin.users') ? 'active' : '' }}">
-                        <a href="#" class='sidebar-link'>
+                    <li class="sidebar-item {{ request()->routeIs('admin.users') ? 'active' : '' }}">
+                        <a href="{{ route('admin.users') }}" class='sidebar-link'>
                             <i class="bi bi-people"></i>
                             <span>Users</span>
                         </a>
-                        <ul class="submenu">
-                            <li class="submenu-item {{ request()->routeIs('admin.users') ? 'active' : '' }}">
-                                <a href="{{ route('admin.users') }}">Users Datatable</a>
-                            </li>
-                        </ul>
                     </li>
                 @elseif(Auth::user()->role === 'head')
                     <li class="sidebar-item {{ request()->routeIs('head.dashboard') ? 'active' : '' }}">
@@ -55,7 +50,7 @@
                     </li>
                     <li class="sidebar-item {{ request()->routeIs('head.file') ? 'active' : '' }}">
                         <a href="{{ route('head.file') }}" class='sidebar-link'>
-                            <i class="bi bi-bar-chart"></i>
+                            <i class="bi bi-cloud-arrow-up"></i>
                             <span>File Upload</span>
                         </a>
                     </li>
