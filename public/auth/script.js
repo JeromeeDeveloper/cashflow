@@ -104,28 +104,16 @@ class ElegantPortfolioLoginForm {
     }
 
     async handleSubmit(e) {
-        e.preventDefault();
-
+        // REMOVE or COMMENT OUT e.preventDefault();
+        // Allow the form to submit normally after validation
         const isEmailValid = this.validateEmail();
         const isPasswordValid = this.validatePassword();
 
         if (!isEmailValid || !isPasswordValid) {
+            e.preventDefault(); // Only prevent if invalid
             return;
         }
-
-        this.setLoading(true);
-
-        try {
-            // Simulate authentication
-            await new Promise(resolve => setTimeout(resolve, 2200));
-
-            // Show success
-            this.showSuccess();
-        } catch (error) {
-            this.showError('password', 'Authentication failed. Please try again.');
-        } finally {
-            this.setLoading(false);
-        }
+        // Otherwise, let the form submit to Laravel
     }
 
     async handleSocialLogin(provider, button) {

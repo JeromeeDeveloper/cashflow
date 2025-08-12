@@ -18,7 +18,7 @@ class UsersTableSeeder extends Seeder
         DB::table('users')->insert([
             [
                 'name' => 'Admin User',
-                'email' => 'admin@example.com',
+                'email' => 'admin@gmail.com',
                 'phone' => '1234567890',
                 'role' => 'admin',
                 'status' => 'active',
@@ -30,7 +30,7 @@ class UsersTableSeeder extends Seeder
             ],
             [
                 'name' => 'Head User',
-                'email' => 'head@example.com',
+                'email' => 'head@gmail.com',
                 'phone' => '0987654321',
                 'role' => 'head',
                 'status' => 'active',
@@ -42,7 +42,7 @@ class UsersTableSeeder extends Seeder
             ],
             [
                 'name' => 'Branch User',
-                'email' => 'branch@example.com',
+                'email' => 'branch@gmail.com',
                 'phone' => '1122334455',
                 'role' => 'branch',
                 'status' => 'active',
