@@ -67,6 +67,12 @@
                             <span>Dashboard</span>
                         </a>
                     </li>
+					<li class="sidebar-item {{ request()->routeIs('branch.file') ? 'active' : '' }}">
+						<a href="{{ route('branch.file') }}" class='sidebar-link'>
+							<i class="bi bi-cloud-arrow-up"></i>
+							<span>File Upload</span>
+						</a>
+					</li>
                     <li class="sidebar-item {{ request()->routeIs('branch.cashflow') ? 'active' : '' }}">
                         <a href="{{ route('branch.cashflow') }}" class='sidebar-link'>
                             <i class="bi bi-cash-stack"></i>

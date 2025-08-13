@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Head\DashboardController as HeadDashboardController;
 use App\Http\Controllers\Branch\DashboardController as BranchDashboardController;
 use App\Http\Controllers\Branch\CashflowController as BranchCashflowController;
+use App\Http\Controllers\Branch\FileController as BranchFileController;
 
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Head\FileController;
@@ -71,10 +72,20 @@ Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(f
 Route::prefix('branch')->name('branch.')->middleware(['auth', 'role:branch'])->group(function () {
     Route::get('/dashboard', [BranchDashboardController::class, 'index'])->name('dashboard');
     Route::get('/cashflow', [BranchCashflowController::class, 'index'])->name('cashflow');
+    Route::get('/file', [BranchFileController::class, 'index'])->name('file');
 
     // Branch Cashflow routes (read-only)
     Route::get('/cashflows', [BranchCashflowController::class, 'getCashflows'])->name('cashflows.index');
     Route::get('/cashflows/{cashflow}', [BranchCashflowController::class, 'show'])->name('cashflows.show');
     Route::get('/cashflows/summary', [BranchCashflowController::class, 'getSummary'])->name('cashflows.summary');
     Route::get('/cashflows/export', [BranchCashflowController::class, 'export'])->name('cashflows.export');
+
+    // Branch File upload routes (branch-scoped)
+    Route::get('/files', [BranchFileController::class, 'getFiles'])->name('files.index');
+    Route::post('/files', [BranchFileController::class, 'store'])->name('files.store');
+    Route::get('/files/{cashflowFile}', [BranchFileController::class, 'show'])->name('files.show');
+    Route::put('/files/{cashflowFile}', [BranchFileController::class, 'update'])->name('files.update');
+    Route::delete('/files/{cashflowFile}', [BranchFileController::class, 'destroy'])->name('files.destroy');
+    Route::get('/files/{cashflowFile}/download', [BranchFileController::class, 'download'])->name('files.download');
+    Route::post('/files/{cashflowFile}/process', [BranchFileController::class, 'process'])->name('files.process');
 });
