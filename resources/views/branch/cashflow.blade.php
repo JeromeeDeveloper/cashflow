@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Branch Cash Flow</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Cash Flow - {{ $branch->name }}</title>
 
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -31,83 +32,135 @@
 
             <div class="page-heading d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div>
-                    <h3>Cash Flow</h3>
-                    <p class="text-subtitle text-muted">Enter percent allocations and generate cash flow</p>
+                    <h3>Cash Flow - {{ $branch->name }}</h3>
+                    <p class="text-subtitle text-muted">View cash flow data for your branch</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <input type="month" id="reporting_period" class="form-control" style="min-width: 220px;" value="{{ date('Y-m') }}">
-
-
-                    <button id="btnGenerate" class="btn btn-primary"><i class="bi bi-lightning-charge me-2"></i>Generate</button>
+                    <span class="badge rounded-pill bg-primary fs-6 px-3 py-2">
+                        <i class="bi bi-building me-2"></i>{{ $branch->name }}
+                    </span>
                 </div>
             </div>
 
             <div class="page-content">
                 <section class="row">
-                    <div class="col-12 col-xxl-9">
+                    <div class="col-12">
                         <div class="card">
-                            <div class="card-header d-flex align-items-center justify-content-between">
-                                <h4 class="mb-0">Cash Flow Input</h4>
-                                <div class="input-group" style="max-width: 320px;">
-                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
-                                    <input type="text" class="form-control" placeholder="Search rows...">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <h4 class="mb-0">Cash Flow Summary</h4>
+                                <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <div class="input-group" style="max-width: 280px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
+                                        <input type="month" id="reporting_period" class="form-control" value="{{ date('Y-m') }}">
+                                    </div>
+                                    <button id="btnRefresh" class="btn btn-outline-secondary">
+                                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                                    </button>
+                                    <button id="btnExport" class="btn btn-success">
+                                        <i class="bi bi-download me-2"></i>Export
+                                    </button>
+                                    <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center px-3" data-bs-toggle="tooltip" data-bs-placement="top" title="This view shows all cashflow data for your branch.">
+                                        <i class="bi bi-eye-fill text-info me-2"></i>
+                                        Read-Only View
+                                    </span>
                                 </div>
                             </div>
                             <div class="card-body">
                                 <div class="table-responsive">
-                                    <table class="table table-hover align-middle" id="table-cashflow">
+                                    <table class="table table-hover" id="table-cashflow">
                                         <thead>
                                             <tr>
-                                                <th style="min-width:100px">GL Code</th>
-                                                <th style="min-width:220px">GL Name</th>
-                                                <th style="min-width:160px">Category</th>
-                                                <th class="text-end" style="min-width:160px">Base Amount</th>
-                                                <th class="text-end" style="min-width:140px">Percent %</th>
-                                                <th class="text-end" style="min-width:180px">Cash Flow Amount</th>
-                                                <th style="min-width:160px">Notes</th>
-                                                <th class="text-end" style="min-width:90px">Actions</th>
+                                                <th>Account Code</th>
+                                                <th>Account Name</th>
+                                                <th>Account Type</th>
+                                                <th>Category</th>
+                                                <th class="text-end">Actual Amount</th>
+                                                <th class="text-end">Projection %</th>
+                                                <th class="text-end">Projected Amount</th>
+                                                <th class="text-end">Total</th>
+                                                <th class="text-end">Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody id="cashflow-body">
-                                            <tr>
-                                                <td><input type="text" class="form-control form-control-sm" placeholder="1001"></td>
-                                                <td><input type="text" class="form-control form-control-sm" placeholder="Cash on Hand"></td>
-                                                <td>
-                                                    <select class="form-select form-select-sm">
-                                                        <option>Operating</option>
-                                                        <option>Investing</option>
-                                                        <option>Financing</option>
-                                                    </select>
-                                                </td>
-                                                <td class="text-end"><input type="text" class="form-control form-control-sm text-end base-amount" value="0"></td>
-                                                <td class="text-end"><input type="number" step="0.01" class="form-control form-control-sm text-end percent" value="0"></td>
-                                                <td class="text-end"><input type="text" class="form-control form-control-sm text-end amount" value="0" readonly></td>
-                                                <td><input type="text" class="form-control form-control-sm" placeholder=""></td>
-                                                <td class="text-end">
-                                                    <button class="btn btn-sm btn-outline-danger btn-delete" title="Remove"><i class="bi bi-trash"></i></button>
-                                                </td>
-                                            </tr>
+                                        <tbody>
+                                            @forelse($cashflows as $cashflow)
+                                                <tr data-id="{{ $cashflow->id }}">
+                                                    <td>{{ $cashflow->account_code }}</td>
+                                                    <td>{{ $cashflow->account_name }}</td>
+                                                    <td>
+                                                        @switch($cashflow->account_type)
+                                                            @case('Asset')
+                                                                <span class="badge bg-primary">{{ $cashflow->account_type }}</span>
+                                                                @break
+                                                            @case('Liability')
+                                                                <span class="badge bg-danger">{{ $cashflow->account_type }}</span>
+                                                                @break
+                                                            @case('Equity')
+                                                                <span class="badge bg-success">{{ $cashflow->account_type }}</span>
+                                                                @break
+                                                            @case('Income')
+                                                                <span class="badge bg-info">{{ $cashflow->account_type }}</span>
+                                                                @break
+                                                            @case('Expense')
+                                                                <span class="badge bg-warning text-dark">{{ $cashflow->account_type }}</span>
+                                                                @break
+                                                            @default
+                                                                <span class="badge bg-secondary">{{ $cashflow->account_type }}</span>
+                                                        @endswitch
+                                                    </td>
+                                                    <td>
+                                                        @switch($cashflow->cashflow_category)
+                                                            @case('Operating')
+                                                                <span class="badge bg-info text-dark">{{ $cashflow->cashflow_category }}</span>
+                                                                @break
+                                                            @case('Investing')
+                                                                <span class="badge bg-warning text-dark">{{ $cashflow->cashflow_category }}</span>
+                                                                @break
+                                                            @case('Financing')
+                                                                <span class="badge bg-success">{{ $cashflow->cashflow_category }}</span>
+                                                                @break
+                                                            @default
+                                                                <span class="badge bg-secondary">{{ $cashflow->cashflow_category }}</span>
+                                                        @endswitch
+                                                    </td>
+                                                    <td class="text-end">{{ number_format($cashflow->actual_amount, 2) }}</td>
+                                                    <td class="text-end">{{ number_format($cashflow->projection_percentage, 2) }}%</td>
+                                                    <td class="text-end">{{ number_format($cashflow->projected_amount, 2) }}</td>
+                                                    <td class="text-end">{{ number_format($cashflow->total, 2) }}</td>
+                                                    <td class="text-end">
+                                                        <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $cashflow->id }}">
+                                                            <i class="bi bi-eye"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="8" class="text-center text-muted py-4">
+                                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                                        No cash flow entries found for your branch
+                                                    </td>
+                                                </tr>
+                                            @endforelse
                                         </tbody>
                                         <tfoot>
                                             <tr class="table-light">
-                                                <th colspan="5" class="text-end">Total Operating</th>
-                                                <th class="text-end" id="totalOperating">0</th>
-                                                <th colspan="2"></th>
+                                                <th colspan="7" class="text-end">Total Operating</th>
+                                                <th class="text-end" id="totalOperating">0.00</th>
+                                                <th></th>
                                             </tr>
                                             <tr class="table-light">
-                                                <th colspan="5" class="text-end">Total Investing</th>
-                                                <th class="text-end" id="totalInvesting">0</th>
-                                                <th colspan="2"></th>
+                                                <th colspan="7" class="text-end">Total Investing</th>
+                                                <th class="text-end" id="totalInvesting">0.00</th>
+                                                <th></th>
                                             </tr>
                                             <tr class="table-light">
-                                                <th colspan="5" class="text-end">Total Financing</th>
-                                                <th class="text-end" id="totalFinancing">0</th>
-                                                <th colspan="2"></th>
+                                                <th colspan="7" class="text-end">Total Financing</th>
+                                                <th class="text-end" id="totalFinancing">0.00</th>
+                                                <th></th>
                                             </tr>
                                             <tr class="table-secondary">
-                                                <th colspan="5" class="text-end">Net Cash Flow</th>
-                                                <th class="text-end" id="netCashflow">0</th>
-                                                <th colspan="2"></th>
+                                                <th colspan="7" class="text-end">Net Cash Flow</th>
+                                                <th class="text-end" id="netCashflow">0.00</th>
+                                                <th></th>
                                             </tr>
                                         </tfoot>
                                     </table>
@@ -115,50 +168,68 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="col-12 col-xxl-3">
-                        <div class="card">
-                            <div class="card-header">
-                                <h4>Summary</h4>
-                            </div>
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Operating</span>
-                                    <strong id="sumOperating">0</strong>
-                                </div>
-                                <div class="d-flex justify-content-between mb-2">
-                                    <span>Investing</span>
-                                    <strong id="sumInvesting">0</strong>
-                                </div>
-                                <div class="d-flex justify-content-between mb-3">
-                                    <span>Financing</span>
-                                    <strong id="sumFinancing">0</strong>
-                                </div>
-                                <hr>
-                                <div class="d-flex justify-content-between">
-                                    <span class="fw-bold">Net Cash Flow</span>
-                                    <span class="fw-bold" id="sumNet">0</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="card">
-                            <div class="card-header">
-                                <h4>Notes</h4>
-                            </div>
-                            <div class="card-body">
-                                <textarea class="form-control" rows="6" placeholder="Optional notes for this period..."></textarea>
-                                <div class="d-flex justify-content-end mt-3 gap-2">
-                                    <button class="btn btn-light-secondary" id="btnClear"><i class="bi bi-eraser me-2"></i>Clear</button>
-                                    <button class="btn btn-success" id="btnSave"><i class="bi bi-save me-2"></i>Save</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </section>
             </div>
 
-          
+            <!-- View Modal -->
+            <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="viewModalLabel">Cash Flow Details</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Account Code:</label>
+                                    <p id="view_account_code"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Account Name:</label>
+                                    <p id="view_account_name"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Account Type:</label>
+                                    <p id="view_account_type"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Category:</label>
+                                    <p id="view_cashflow_category"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Branch:</label>
+                                    <p id="view_branch"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Period:</label>
+                                    <p id="view_period"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Actual Amount:</label>
+                                    <p id="view_actual_amount"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Projection %:</label>
+                                    <p id="view_projection_percentage"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Projected Amount:</label>
+                                    <p id="view_projected_amount"></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">Total:</label>
+                                    <p id="view_total"></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -167,105 +238,250 @@
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
     <script src="{{ asset('assets/js/main.js') }}"></script>
     <script>
-        function parseNumber(value) {
-            if (!value) return 0;
-            const cleaned = ('' + value).replace(/[,\s]/g, '');
-            const num = parseFloat(cleaned);
-            return isNaN(num) ? 0 : num;
-        }
-
-        function formatNumber(num) {
-            const n = typeof num === 'number' ? num : parseNumber(num);
-            return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function computeRow(row) {
-            const baseInput = row.querySelector('.base-amount');
-            const percentInput = row.querySelector('.percent');
-            const amountInput = row.querySelector('.amount');
-            const category = row.querySelector('select');
-
-            const base = parseNumber(baseInput.value);
-            const pct = parseNumber(percentInput.value);
-            const amount = base * (pct / 100);
-            amountInput.value = formatNumber(amount);
-
-            return { category: category.value, amount };
-        }
-
-        function recomputeTotals() {
-            const rows = Array.from(document.querySelectorAll('#cashflow-body tr'));
-            let totals = { Operating: 0, Investing: 0, Financing: 0 };
-            rows.forEach(row => {
-                const result = computeRow(row);
-                totals[result.category] += result.amount;
-            });
-
-            document.getElementById('totalOperating').textContent = formatNumber(totals.Operating);
-            document.getElementById('totalInvesting').textContent = formatNumber(totals.Investing);
-            document.getElementById('totalFinancing').textContent = formatNumber(totals.Financing);
-            const net = totals.Operating + totals.Investing + totals.Financing;
-            document.getElementById('netCashflow').textContent = formatNumber(net);
-
-            document.getElementById('sumOperating').textContent = formatNumber(totals.Operating);
-            document.getElementById('sumInvesting').textContent = formatNumber(totals.Investing);
-            document.getElementById('sumFinancing').textContent = formatNumber(totals.Financing);
-            document.getElementById('sumNet').textContent = formatNumber(net);
-        }
-
-        function addRow(prefill) {
-            const body = document.getElementById('cashflow-body');
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td><input type="text" class="form-control form-control-sm" placeholder="1001" value="${prefill?.code || ''}"></td>
-                <td><input type="text" class="form-control form-control-sm" placeholder="Account name" value="${prefill?.name || ''}"></td>
-                <td>
-                    <select class="form-select form-select-sm">
-                        <option ${prefill?.category === 'Operating' ? 'selected' : ''}>Operating</option>
-                        <option ${prefill?.category === 'Investing' ? 'selected' : ''}>Investing</option>
-                        <option ${prefill?.category === 'Financing' ? 'selected' : ''}>Financing</option>
-                    </select>
-                </td>
-                <td class="text-end"><input type="text" class="form-control form-control-sm text-end base-amount" value="${prefill?.base || 0}"></td>
-                <td class="text-end"><input type="number" step="0.01" class="form-control form-control-sm text-end percent" value="${prefill?.percent || 0}"></td>
-                <td class="text-end"><input type="text" class="form-control form-control-sm text-end amount" value="0" readonly></td>
-                <td><input type="text" class="form-control form-control-sm" value="${prefill?.notes || ''}"></td>
-                <td class="text-end">
-                    <button class="btn btn-sm btn-outline-danger btn-delete" title="Remove"><i class="bi bi-trash"></i></button>
-                </td>
-            `;
-            body.appendChild(tr);
-            attachRowHandlers(tr);
-            recomputeTotals();
-        }
-
-        function attachRowHandlers(row) {
-            row.addEventListener('input', (e) => {
-                if (e.target.classList.contains('base-amount') || e.target.classList.contains('percent')) {
-                    recomputeTotals();
-                }
-            });
-            row.querySelector('select').addEventListener('change', recomputeTotals);
-            row.querySelector('.btn-delete').addEventListener('click', () => {
-                row.remove();
-                recomputeTotals();
-            });
-        }
-
         document.addEventListener('DOMContentLoaded', function() {
-            // Initialize existing rows
-            document.querySelectorAll('#cashflow-body tr').forEach(attachRowHandlers);
+            // CSRF token for Laravel
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
-            document.getElementById('btnGenerate').addEventListener('click', recomputeTotals);
-            document.getElementById('btnAddRow').addEventListener('click', () => addRow());
-            document.getElementById('btnClear').addEventListener('click', () => {
-                document.getElementById('cashflow-body').innerHTML = '';
-                addRow();
-                recomputeTotals();
+            // Enable Bootstrap tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
             });
 
+            // Initialize DataTable
+            const cashflowTable = document.querySelector('#table-cashflow');
+            if (cashflowTable && window.simpleDatatables) {
+                new simpleDatatables.DataTable(cashflowTable);
+            }
 
-            recomputeTotals();
+            // Modal instance
+            const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+
+            // Load initial data and calculate totals
+            updateSummary();
+
+            // View buttons
+            document.querySelectorAll('.btn-view').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const id = this.getAttribute('data-id');
+                    loadCashflowForView(id);
+                    viewModal.show();
+                });
+            });
+
+            // Month filter
+            document.getElementById('reporting_period').addEventListener('change', function() {
+                loadCashflows();
+            });
+
+            // Refresh button
+            document.getElementById('btnRefresh').addEventListener('click', function() {
+                this.disabled = true;
+                this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Refreshing...';
+
+                loadCashflows();
+                updateSummary();
+
+                setTimeout(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Refresh';
+                }, 1000);
+            });
+
+            // Export button
+            document.getElementById('btnExport').addEventListener('click', function() {
+                exportCashflows();
+            });
+
+            function loadCashflows() {
+                const monthInput = document.getElementById('reporting_period');
+
+                const [year, month] = monthInput.value.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+                const params = new URLSearchParams({
+                    year: year,
+                    month: monthNames[parseInt(month) - 1]
+                });
+
+                fetch(`{{ route('branch.cashflows.index') }}?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            updateTable(data.data);
+                            updateSummary();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading cashflows:', error);
+                        showAlert('Error loading cashflows', 'error');
+                    });
+            }
+
+            function updateTable(cashflows) {
+                const tbody = document.querySelector('#table-cashflow tbody');
+                tbody.innerHTML = '';
+
+                if (cashflows.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                No cash flow entries found for your branch
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                cashflows.forEach(cashflow => {
+                    const row = document.createElement('tr');
+                    row.setAttribute('data-id', cashflow.id);
+                    row.innerHTML = `
+                        <td>${cashflow.account_code || 'N/A'}</td>
+                        <td>${cashflow.account_name || 'N/A'}</td>
+                        <td>${getAccountTypeBadge(cashflow.account_type)}</td>
+                        <td>${getCategoryBadge(cashflow.cashflow_category)}</td>
+                        <td class="text-end">${formatNumber(cashflow.actual_amount)}</td>
+                        <td class="text-end">${formatNumber(cashflow.projection_percentage)}%</td>
+                        <td class="text-end">${formatNumber(cashflow.projected_amount)}</td>
+                        <td class="text-end">${formatNumber(cashflow.total)}</td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="${cashflow.id}">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                // Re-attach event listeners
+                attachEventListeners();
+            }
+
+            function attachEventListeners() {
+                // View buttons
+                document.querySelectorAll('.btn-view').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const id = this.getAttribute('data-id');
+                        loadCashflowForView(id);
+                        viewModal.show();
+                    });
+                });
+            }
+
+            function loadCashflowForView(id) {
+                fetch(`{{ route('branch.cashflows.index') }}/${id}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const cashflow = data.data;
+                            document.getElementById('view_account_code').textContent = cashflow.account_code || 'N/A';
+                            document.getElementById('view_account_name').textContent = cashflow.account_name || 'N/A';
+                            document.getElementById('view_account_type').textContent = cashflow.account_type || 'N/A';
+                            document.getElementById('view_cashflow_category').textContent = cashflow.cashflow_category || 'N/A';
+                            document.getElementById('view_branch').textContent = cashflow.branch?.name || 'N/A';
+                            document.getElementById('view_period').textContent = `${cashflow.month} ${cashflow.year}`;
+                            document.getElementById('view_actual_amount').textContent = `₱ ${formatNumber(cashflow.actual_amount)}`;
+                            document.getElementById('view_projection_percentage').textContent = `${formatNumber(cashflow.projection_percentage)}%`;
+                            document.getElementById('view_projected_amount').textContent = `₱ ${formatNumber(cashflow.projected_amount)}`;
+                            document.getElementById('view_total').textContent = `₱ ${formatNumber(cashflow.total)}`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading cashflow:', error);
+                        showAlert('Error loading cashflow data', 'error');
+                    });
+            }
+
+            function updateSummary() {
+                const monthInput = document.getElementById('reporting_period');
+
+                const [year, month] = monthInput.value.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+                const params = new URLSearchParams({
+                    year: year,
+                    month: monthNames[parseInt(month) - 1]
+                });
+
+                fetch(`{{ route('branch.cashflows.summary') }}?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const summary = data.data;
+                            document.getElementById('totalOperating').textContent = formatNumber(summary.total_operating);
+                            document.getElementById('totalInvesting').textContent = formatNumber(summary.total_investing);
+                            document.getElementById('totalFinancing').textContent = formatNumber(summary.total_financing);
+                            document.getElementById('netCashflow').textContent = formatNumber(summary.net_cashflow);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading summary:', error);
+                    });
+            }
+
+            function exportCashflows() {
+                const monthInput = document.getElementById('reporting_period');
+
+                const [year, month] = monthInput.value.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+                const params = new URLSearchParams({
+                    year: year,
+                    month: monthNames[parseInt(month) - 1]
+                });
+
+                fetch(`{{ route('branch.cashflows.export') }}?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // In a real app, you might download a file
+                            // For now, we'll show the data
+                            console.log('Export data:', data.data);
+                            showAlert('Export data prepared successfully', 'success');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error exporting cashflows:', error);
+                        showAlert('Error exporting cashflows', 'error');
+                    });
+            }
+
+            function getAccountTypeBadge(type) {
+                const badges = {
+                    'Asset': '<span class="badge bg-primary">Asset</span>',
+                    'Liability': '<span class="badge bg-danger">Liability</span>',
+                    'Equity': '<span class="badge bg-success">Equity</span>',
+                    'Income': '<span class="badge bg-info">Income</span>',
+                    'Expense': '<span class="badge bg-warning text-dark">Expense</span>'
+                };
+                return badges[type] || `<span class="badge bg-secondary">${type}</span>`;
+            }
+
+            function getCategoryBadge(category) {
+                const badges = {
+                    'Operating': '<span class="badge bg-info text-dark">Operating</span>',
+                    'Investing': '<span class="badge bg-warning text-dark">Investing</span>',
+                    'Financing': '<span class="badge bg-success">Financing</span>'
+                };
+                return badges[category] || `<span class="badge bg-secondary">${category}</span>`;
+            }
+
+            function formatNumber(number) {
+                return parseFloat(number || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function showAlert(message, type = 'info') {
+                // Simple alert for now
+                alert(message);
+            }
         });
     </script>
 </body>

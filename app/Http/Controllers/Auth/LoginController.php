@@ -32,6 +32,9 @@ class LoginController extends Controller
 
     protected function authenticated($request, $user)
     {
+        // Update last login timestamp
+        $user->updateLastLogin();
+
         if ($user->role === 'admin') {
             return redirect()->route('admin.dashboard');
         } elseif ($user->role === 'head') {

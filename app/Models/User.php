@@ -6,6 +6,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 
 class User extends Authenticatable
 {
@@ -21,6 +23,11 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'phone',
+        'role',
+        'status',
+        'branch_id',
+        'last_login_at',
     ];
 
     /**
@@ -44,5 +51,50 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Get the branch that the user belongs to.
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Check if the user is a branch user.
+     */
+    public function isBranchUser(): bool
+    {
+        return $this->role === 'branch' && $this->branch_id !== null;
+    }
+
+    /**
+     * Check if the user is a head office user.
+     */
+    public function isHeadUser(): bool
+    {
+        return $this->role === 'head';
+    }
+
+    /**
+     * Check if the user is an admin user.
+     */
+    public function isAdminUser(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Update the last login timestamp.
+     */
+    public function updateLastLogin(): void
+    {
+        try {
+            $this->update(['last_login_at' => now()]);
+        } catch (\Exception $e) {
+            // If the column doesn't exist yet, just log the error and continue
+            Log::warning('Could not update last_login_at: ' . $e->getMessage());
+        }
     }
 }

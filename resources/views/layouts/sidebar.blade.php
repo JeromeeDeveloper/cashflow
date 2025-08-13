@@ -24,21 +24,15 @@
 
                 @if(Auth::user()->role === 'admin')
                     <li class="sidebar-item {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}">
-                        <a href="{{ route('admin.dashboard') }}" class='sidebar-link'>
-                            <i class="bi bi-grid-fill"></i>
+                        <a href="{{ route('admin.dashboard') }}" class="sidebar-link">
+                            <i class="bi bi-grid-1x2-fill"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <li class="sidebar-item {{ request()->routeIs('admin.setup') ? 'active' : '' }}">
-                        <a href="{{ route('admin.setup') }}" class='sidebar-link'>
-                            <i class="bi bi-gear"></i>
-                            <span>Setup</span>
-                        </a>
-                    </li>
-                    <li class="sidebar-item {{ request()->routeIs('admin.users') ? 'active' : '' }}">
-                        <a href="{{ route('admin.users') }}" class='sidebar-link'>
-                            <i class="bi bi-people"></i>
-                            <span>Users</span>
+                    <li class="sidebar-item {{ request()->routeIs('admin.users*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.users') }}" class="sidebar-link">
+                            <i class="bi bi-people-fill"></i>
+                            <span>User Management</span>
                         </a>
                     </li>
                 @elseif(Auth::user()->role === 'head')
