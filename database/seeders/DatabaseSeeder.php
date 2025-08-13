@@ -13,9 +13,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            BranchesTableSeeder::class,    // Create branches and head users first
-            UsersTableSeeder::class,       // Create admin and branch users
-            CashflowDataSeeder::class,     // Create sample cashflow data
+            BranchSeeder::class,
+            UsersTableSeeder::class,
         ]);
     }
 }

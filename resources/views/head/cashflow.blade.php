@@ -83,8 +83,8 @@
                                         <tbody>
                                             @forelse($cashflows as $cashflow)
                                                 <tr data-id="{{ $cashflow->id }}">
-                                                    <td>{{ $cashflow->account_code }}</td>
-                                                    <td>{{ $cashflow->account_name }}</td>
+                                                    <td>{{ $cashflow->glAccount->account_code ?? 'N/A' }}</td>
+                                                    <td>{{ $cashflow->glAccount->account_name ?? $cashflow->account_name ?? 'N/A' }}</td>
                                                     <td>
                                                         @switch($cashflow->account_type)
                                                             @case('Asset')
@@ -134,7 +134,7 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="9" class="text-center text-muted py-4">
+                                                    <td colspan="10" class="text-center text-muted py-4">
                                                         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                                                         No cash flow entries found
                                                     </td>

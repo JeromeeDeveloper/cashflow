@@ -17,7 +17,7 @@ class CashflowController extends Controller
     public function index(): View
     {
         $branches = Branch::all();
-        $cashflows = Cashflow::with(['branch', 'cashflowFile'])
+        $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -29,7 +29,7 @@ class CashflowController extends Controller
      */
     public function getCashflows(Request $request): JsonResponse
     {
-        $query = Cashflow::with(['branch', 'cashflowFile']);
+        $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount']);
 
         // Filter by year
         if ($request->filled('year')) {
@@ -65,8 +65,7 @@ class CashflowController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->validate([
-            'account_code' => 'required|string|max:50',
-            'account_name' => 'required|string|max:255',
+            'gl_account_id' => 'required|exists:gl_accounts,id',
             'account_type' => 'required|in:Asset,Liability,Equity,Income,Expense',
             'cashflow_category' => 'required|in:Operating,Investing,Financing',
             'branch_id' => 'required|exists:branches,id',
@@ -82,10 +81,9 @@ class CashflowController extends Controller
             $cashflow = Cashflow::create([
                 'cashflow_file_id' => null, // Will be set when processing uploaded files
                 'branch_id' => $request->branch_id,
+                'gl_account_id' => $request->gl_account_id,
                 'year' => $request->year,
                 'month' => $request->month,
-                'account_code' => $request->account_code,
-                'account_name' => $request->account_name,
                 'account_type' => $request->account_type,
                 'cashflow_category' => $request->cashflow_category,
                 'actual_amount' => $request->actual_amount,
@@ -94,19 +92,18 @@ class CashflowController extends Controller
                 'total' => $request->total,
             ]);
 
-            $cashflow->load('branch');
+            $cashflow->load(['branch', 'glAccount']);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Cash flow entry created successfully',
+                'message' => 'Cashflow entry created successfully',
                 'data' => $cashflow
-            ], 201);
+            ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create cash flow entry',
-                'error' => $e->getMessage()
+                'message' => 'Error creating cashflow entry: ' . $e->getMessage()
             ], 500);
         }
     }

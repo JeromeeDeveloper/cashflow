@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/simple-datatables/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/sweetalert2/sweetalert2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.svg') }}" type="image/x-icon">
 </head>
@@ -32,15 +33,12 @@
 
             <div class="page-heading d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div>
-                    <h3>Cash Flow File Upload</h3>
-                    <p class="text-subtitle text-muted">Upload and manage Excel files for cash flow processing</p>
+                    <h3>Cash Flow File Management</h3>
+                    <p class="text-subtitle text-muted">Upload and manage cash flow Excel files for specific branches</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <button id="btnUpload" class="btn btn-primary">
-                        <i class="bi bi-cloud-arrow-up me-2"></i>Upload New File
-                    </button>
-                    <button id="btnRefresh" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+                    <button id="btnAdd" class="btn btn-primary">
+                        <i class="bi bi-cloud-arrow-up me-2"></i>Upload Excel File
                     </button>
                 </div>
             </div>
@@ -51,17 +49,39 @@
                         <div class="card">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <h4 class="mb-0">Uploaded Cash Flow Files</h4>
-                                <div class="d-flex align-items-center flex-wrap gap-2">
+                                <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
                                     <div class="input-group" style="max-width: 200px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="searchInput" class="form-control" placeholder="Search files...">
+                                    </div>
+                                    <div class="input-group" style="max-width: 150px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-building"></i></span>
+                                        <select id="branch_filter" class="form-select">
+                                            <option value="">All Branches</option>
+                                            @foreach($branches ?? [] as $branch)
+                                                <option value="{{ $branch->name }}">{{ $branch->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                    <div class="input-group" style="max-width: 150px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
                                         <select id="year_filter" class="form-select">
                                             <option value="">All Years</option>
-                                            @for($year = date('Y'); $year >= date('Y') - 5; $year--)
-                                                <option value="{{ $year }}">{{ $year }}</option>
+                                            @for($y = date('Y'); $y >= 2020; $y--)
+                                                <option value="{{ $y }}">{{ $y }}</option>
                                             @endfor
                                         </select>
                                     </div>
-                                
+                                    <div class="input-group" style="max-width: 150px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-check-circle"></i></span>
+                                        <select id="status_filter" class="form-select">
+                                            <option value="">All Status</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="processing">Processing</option>
+                                            <option value="processed">Processed</option>
+                                            <option value="error">Error</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -72,12 +92,11 @@
                                                 <th>File Name</th>
                                                 <th>Original Name</th>
                                                 <th>Branch</th>
-                                                <th>Year</th>
-                                                <th>Month</th>
+                                                <th>Period</th>
                                                 <th>Uploaded By</th>
                                                 <th>Status</th>
                                                 <th>Upload Date</th>
-                                                <th>Actions</th>
+                                                <th class="text-end">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -90,11 +109,8 @@
                                                         </div>
                                                     </td>
                                                     <td>{{ $file->original_name }}</td>
-                                                    <td>
-                                                        <span class="badge bg-primary">{{ $file->branch->name ?? 'N/A' }}</span>
-                                                    </td>
-                                                    <td>{{ $file->year }}</td>
-                                                    <td>{{ $file->month ?? 'N/A' }}</td>
+                                                    <td>{{ $file->branch->name ?? 'All Branches' }}</td>
+                                                    <td>{{ $file->year }} {{ $file->month ?? 'N/A' }}</td>
                                                     <td>{{ $file->uploaded_by ?? 'N/A' }}</td>
                                                     <td>
                                                         @switch($file->status)
@@ -131,7 +147,7 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="9" class="text-center text-muted py-4">
+                                                    <td colspan="8" class="text-center text-muted py-4">
                                                         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                                                         No cash flow files uploaded yet
                                                     </td>
@@ -151,11 +167,11 @@
                 <div class="modal-dialog modal-lg modal-dialog-centered">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="uploadModalLabel">Upload Cash Flow File</h5>
+                            <h5 class="modal-title" id="uploadModalLabel">Upload Cash Flow Excel File</h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                         </div>
-                        <div class="modal-body">
-                            <form id="uploadForm" enctype="multipart/form-data">
+                        <form id="uploadForm" enctype="multipart/form-data">
+                            <div class="modal-body">
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label for="branch_id" class="form-label">Branch <span class="text-danger">*</span></label>
@@ -170,15 +186,15 @@
                                         <label for="year" class="form-label">Year <span class="text-danger">*</span></label>
                                         <select class="form-select" id="year" name="year" required>
                                             <option value="">Select Year</option>
-                                            @for($year = date('Y'); $year >= date('Y') - 5; $year--)
-                                                <option value="{{ $year }}">{{ $year }}</option>
+                                            @for($y = date('Y'); $y >= 2020; $y--)
+                                                <option value="{{ $y }}">{{ $y }}</option>
                                             @endfor
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="month" class="form-label">Month</label>
-                                        <select class="form-select" id="month" name="month">
-                                            <option value="">Select Month (Optional)</option>
+                                        <label for="month" class="form-label">Month <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="month" name="month" required>
+                                            <option value="">Select Month</option>
                                             <option value="January">January</option>
                                             <option value="February">February</option>
                                             <option value="March">March</option>
@@ -194,34 +210,36 @@
                                         </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <label for="file_type" class="form-label">File Type</label>
-                                        <select class="form-select" id="file_type" name="file_type">
-                                            <option value="cashflow" selected>Cash Flow</option>
-                                            <option value="gl_accounts">GL Accounts</option>
-                                            <option value="budget">Budget</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="cashflow_file" class="form-label">Excel File <span class="text-danger">*</span></label>
-                                        <input type="file" class="form-control" id="cashflow_file" name="cashflow_file" accept=".xlsx,.xls,.csv" required>
-                                        <div class="form-text">
-                                            Supported formats: .xlsx, .xls, .csv. Maximum size: 10MB
-                                        </div>
+                                        <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>
+                                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                                        <small class="text-muted">Only Excel files (.xlsx, .xls) up to 10MB</small>
                                     </div>
                                     <div class="col-12">
                                         <label for="description" class="form-label">Description</label>
-                                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description of the file contents..."></textarea>
+                                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description of the cash flow data..."></textarea>
                                     </div>
                                 </div>
-                            </form>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="btnSaveUpload">
-                                <span class="spinner-border spinner-border-sm d-none me-2" role="status"></span>
-                                Upload File
-                            </button>
-                        </div>
+
+                                <!-- File Format Instructions -->
+                                <div class="alert alert-info mt-3">
+                                    <h6><i class="bi bi-info-circle me-2"></i>Excel File Format Requirements:</h6>
+                                    <ul class="mb-0 small">
+                                        <li><strong>Row A1:</strong> Cooperative name</li>
+                                        <li><strong>Row A2:</strong> "CASH FLOW MONITORING REPORT"</li>
+                                        <li><strong>Column A:</strong> Headers (CASH BEGINNING BALANCE, TOTAL CASH AVAILABLE, etc.)</li>
+                                        <li><strong>Column B:</strong> Product names and header values</li>
+                                        <li><strong>Column C:</strong> Product amounts</li>
+                                        <li><strong>Key Headers:</strong> CASH BEGINNING BALANCE, TOTAL CASH AVAILABLE, TOTAL DISBURSEMENTS, CASH ENDING BALANCE</li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-upload me-2"></i>Upload File
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -286,24 +304,7 @@
             </div>
 
             <!-- Delete Confirmation Modal -->
-            <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <p>Are you sure you want to delete this cash flow file? This action cannot be undone and will also remove all associated cashflow data.</p>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" class="btn btn-danger" id="btnConfirmDelete">Delete File</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
+            <!-- Removed - Using SweetAlert2 for confirmation instead -->
 
 
         </div>
@@ -312,6 +313,7 @@
     <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
     <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
+    <script src="{{ asset('assets/vendors/sweetalert2/sweetalert2.all.min.js') }}"></script>
     <script src="{{ asset('assets/js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -333,13 +335,13 @@
             // Modal instances
             const uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
             const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
-            const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            // const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal')); // Removed
 
             // Current file ID for operations
             let currentFileId = null;
 
             // Upload button
-            document.getElementById('btnUpload').addEventListener('click', function() {
+            document.getElementById('btnAdd').addEventListener('click', function() {
                 document.getElementById('uploadForm').reset();
                 uploadModal.show();
             });
@@ -353,15 +355,18 @@
                 });
             });
 
-            // Process buttons
+            // Process button
             document.querySelectorAll('.btn-process').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const id = this.getAttribute('data-id');
-                    processFile(id);
+                    const fileName = this.closest('tr').querySelector('td:nth-child(2)').textContent;
+                    if (confirm(`Are you sure you want to process "${fileName}"? This will import the cashflow data into the system.`)) {
+                        processFile(id);
+                    }
                 });
             });
 
-            // Download buttons
+            // Download button
             document.querySelectorAll('.btn-download').forEach(btn => {
                 btn.addEventListener('click', function() {
                     const id = this.getAttribute('data-id');
@@ -374,21 +379,95 @@
                 btn.addEventListener('click', function() {
                     const id = this.getAttribute('data-id');
                     currentFileId = id;
-                    deleteModal.show();
+                    // deleteModal.show(); // Removed
+                    Swal.fire({
+                        title: 'Delete File?',
+                        text: 'Are you sure you want to delete this file? This action cannot be undone.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonColor: '#d33',
+                        cancelButtonColor: '#3085d6',
+                        confirmButtonText: 'Yes, delete it!',
+                        cancelButtonText: 'Cancel'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Show loading
+                            Swal.fire({
+                                title: 'Deleting File...',
+                                text: 'Please wait while we delete the file',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                showConfirmButton: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                }
+                            });
+
+                            fetch(`/head/files/${currentFileId}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-CSRF-TOKEN': csrfToken,
+                                    'Accept': 'application/json',
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                // Close loading
+                                Swal.close();
+
+                                if (data.success) {
+                                    // Show success message
+                                    Swal.fire({
+                                        icon: 'success',
+                                        title: 'File Deleted!',
+                                        text: data.message,
+                                        confirmButtonText: 'OK'
+                                    });
+
+                                    // Close modal and reload page
+                                    // deleteModal.hide(); // Removed
+                                    setTimeout(() => {
+                                        location.reload();
+                                    }, 1500);
+                                } else {
+                                    // Show error message
+                                    Swal.fire({
+                                        icon: 'error',
+                                        title: 'Delete Failed',
+                                        text: data.message || 'An error occurred while deleting the file',
+                                        confirmButtonText: 'OK'
+                                    });
+                                }
+                            })
+                            .catch(error => {
+                                // Close loading
+                                Swal.close();
+
+                                console.error('Error deleting file:', error);
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Delete Failed',
+                                    text: 'Network error occurred. Please try again.',
+                                    confirmButtonText: 'OK'
+                                });
+                            });
+                        }
+                    });
                 });
             });
 
             // Save upload button
-            document.getElementById('btnSaveUpload').addEventListener('click', function() {
+            document.getElementById('uploadForm').addEventListener('submit', function(event) {
+                event.preventDefault(); // Prevent default form submission
                 if (validateUploadForm()) {
                     uploadFile();
                 }
             });
 
             // Confirm delete button
-            document.getElementById('btnConfirmDelete').addEventListener('click', function() {
-                deleteFile();
-            });
+            // document.getElementById('btnConfirmDelete').addEventListener('click', function() { // Removed
+            //     deleteFile(); // Removed
+            // });
 
             // Filter change events
             document.getElementById('year_filter').addEventListener('change', function() {
@@ -422,7 +501,7 @@
                     return false;
                 }
 
-                const fileInput = document.getElementById('cashflow_file');
+                const fileInput = document.getElementById('file');
                 const file = fileInput.files[0];
 
                 if (!file) {
@@ -437,10 +516,10 @@
                 }
 
                 // Check file type
-                const allowedTypes = ['.xlsx', '.xls', '.csv'];
+                const allowedTypes = ['.xlsx', '.xls'];
                 const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
                 if (!allowedTypes.includes(fileExtension)) {
-                    showAlert('Please select a valid Excel or CSV file', 'error');
+                    showAlert('Please select a valid Excel file (.xlsx, .xls)', 'error');
                     return false;
                 }
 
@@ -448,42 +527,111 @@
             }
 
             function uploadFile() {
-                const formData = new FormData(document.getElementById('uploadForm'));
-                const btnSave = document.getElementById('btnSaveUpload');
-                const spinner = btnSave.querySelector('.spinner-border');
+                const formData = new FormData();
+                const fileInput = document.getElementById('file');
+                const branchInput = document.getElementById('branch_id');
+                const yearInput = document.getElementById('year');
+                const monthInput = document.getElementById('month');
+                const descriptionInput = document.getElementById('description');
 
-                // Show loading state
-                btnSave.disabled = true;
-                spinner.classList.remove('d-none');
-                btnSave.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Uploading...';
+                // Validate required fields
+                if (!fileInput.files[0]) {
+                    showAlert('Please select an Excel file', 'error');
+                    return;
+                }
+                if (!branchInput.value) {
+                    showAlert('Please select a branch', 'error');
+                    return;
+                }
+                if (!yearInput.value) {
+                    showAlert('Please select a year', 'error');
+                    return;
+                }
+                if (!monthInput.value) {
+                    showAlert('Please select a month', 'error');
+                    return;
+                }
 
-                fetch('{{ route("head.files.store") }}', {
+                // Show loading with SweetAlert2
+                Swal.fire({
+                    title: 'Uploading File...',
+                    text: 'Please wait while we upload your Excel file',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
+
+                // Prepare form data
+                formData.append('file', fileInput.files[0]);
+                formData.append('branch_id', branchInput.value);
+                formData.append('year', yearInput.value);
+                formData.append('month', monthInput.value);
+                formData.append('description', descriptionInput.value);
+                formData.append('_token', csrfToken);
+
+                // Disable upload button
+                const uploadBtn = document.querySelector('#uploadForm button[type="submit"]');
+                uploadBtn.disabled = true;
+                uploadBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
+
+                fetch('/head/files', {
                     method: 'POST',
+                    body: formData,
                     headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    },
-                    body: formData
+                        'X-CSRF-TOKEN': csrfToken
+                    }
                 })
                 .then(response => response.json())
                 .then(data => {
+                    // Close loading
+                    Swal.close();
+
                     if (data.success) {
-                        showAlert(data.message, 'success');
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'File Uploaded Successfully!',
+                            text: data.message,
+                            confirmButtonText: 'OK'
+                        });
+
+                        // Reset form and close modal
+                        document.getElementById('uploadForm').reset();
                         uploadModal.hide();
-                        location.reload(); // Refresh to show new file
+
+                        // Reload page to show new file
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
                     } else {
-                        showAlert(data.message || 'Failed to upload file', 'error');
+                        // Show error message
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Upload Failed',
+                            text: data.message || 'An error occurred while uploading the file',
+                            confirmButtonText: 'OK'
+                        });
                     }
                 })
                 .catch(error => {
-                    console.error('Error uploading file:', error);
-                    showAlert('Error uploading file', 'error');
+                    // Close loading
+                    Swal.close();
+
+                    console.error('Error:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Upload Failed',
+                        text: 'Network error occurred. Please try again.',
+                        confirmButtonText: 'OK'
+                    });
                 })
                 .finally(() => {
-                    // Reset loading state
-                    btnSave.disabled = false;
-                    spinner.classList.add('d-none');
-                    btnSave.innerHTML = 'Upload File';
+                    // Re-enable upload button
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = '<i class="bi bi-upload me-2"></i>Upload File';
                 });
             }
 
@@ -495,13 +643,13 @@
                             const file = data.data;
                             document.getElementById('view_file_name').textContent = file.file_name;
                             document.getElementById('view_original_name').textContent = file.original_name;
-                            document.getElementById('view_branch').textContent = file.branch?.name || 'N/A';
+                            document.getElementById('view_branch').textContent = file.branch ? file.branch.name : 'All Branches';
                             document.getElementById('view_year').textContent = file.year;
                             document.getElementById('view_month').textContent = file.month || 'N/A';
                             document.getElementById('view_file_type').textContent = file.file_type;
                             document.getElementById('view_status').textContent = file.status;
                             document.getElementById('view_uploaded_by').textContent = file.uploaded_by || 'N/A';
-                            document.getElementById('view_upload_date').textContent = new Date(file.created_at).toLocaleString();
+                            document.getElementById('view_upload_date').textContent = file.created_at;
                             document.getElementById('view_description').textContent = file.description || 'No description provided';
                         }
                     })
@@ -512,11 +660,19 @@
             }
 
             function processFile(id) {
-                if (!confirm('Are you sure you want to process this file? This will extract cashflow data and may take a few moments.')) {
-                    return;
-                }
+                // Show loading with SweetAlert2
+                Swal.fire({
+                    title: 'Processing File...',
+                    text: 'Please wait while we process your Excel file and import data for all branches',
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    showConfirmButton: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    }
+                });
 
-                fetch(`{{ route("head.files.index") }}/${id}/process`, {
+                fetch(`/head/files/${id}/process`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
@@ -525,57 +681,73 @@
                 })
                 .then(response => response.json())
                 .then(data => {
+                    // Close loading
+                    Swal.close();
+
                     if (data.success) {
-                        showAlert(data.message, 'success');
-                        location.reload(); // Refresh to show updated status
+                        // Show success message
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'File Processed Successfully!',
+                            text: data.message,
+                            confirmButtonText: 'OK'
+                        });
+
+                        // Reload page to show updated status
+                        setTimeout(() => {
+                            location.reload();
+                        }, 1500);
                     } else {
-                        showAlert(data.message || 'Failed to process file', 'error');
+                        // Show error message
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Processing Failed',
+                            text: data.message || 'An error occurred while processing the file',
+                            confirmButtonText: 'OK'
+                        });
                     }
                 })
                 .catch(error => {
+                    // Close loading
+                    Swal.close();
+
                     console.error('Error processing file:', error);
-                    showAlert('Error processing file', 'error');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Processing Failed',
+                        text: 'Network error occurred. Please try again.',
+                        confirmButtonText: 'OK'
+                    });
                 });
             }
 
             function downloadFile(id) {
-                // Create a temporary link to download the file
-                const link = document.createElement('a');
-                link.href = `{{ route("head.files.index") }}/${id}/download`;
-                link.download = '';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            }
-
-            function deleteFile() {
-                fetch(`{{ route("head.files.index") }}/${currentFileId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        deleteModal.hide();
-                        location.reload(); // Refresh to remove deleted file
-                    } else {
-                        showAlert(data.message || 'Failed to delete file', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error deleting file:', error);
-                    showAlert('Error deleting file', 'error');
-                });
+                fetch(`/head/files/${id}/download`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Create a temporary link to download the file
+                            const link = document.createElement('a');
+                            link.href = data.data.download_url;
+                            link.download = data.data.file_name;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            showAlert('Download started', 'success');
+                        } else {
+                            showAlert(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error downloading file:', error);
+                        showAlert('Error downloading file. Please try again.', 'error');
+                    });
             }
 
             function filterFiles() {
                 const yearFilter = document.getElementById('year_filter').value;
-                const branchFilter = document.getElementById('branch_filter').value;
                 const statusFilter = document.getElementById('status_filter').value;
+                const branchFilter = document.getElementById('branch_filter').value;
 
                 const rows = document.querySelectorAll('#table-files tbody tr');
 
@@ -587,18 +759,18 @@
                         show = false;
                     }
 
-                    // Filter by branch
-                    if (branchFilter) {
-                        const branchCell = row.cells[2].textContent;
-                        if (!branchCell.includes(branchFilter)) {
-                            show = false;
-                        }
-                    }
-
                     // Filter by status
                     if (statusFilter) {
                         const statusCell = row.cells[6].textContent;
                         if (!statusCell.includes(statusFilter)) {
+                            show = false;
+                        }
+                    }
+
+                    // Filter by branch
+                    if (branchFilter) {
+                        const branchCell = row.cells[2].textContent;
+                        if (!branchCell.includes(branchFilter)) {
                             show = false;
                         }
                     }
@@ -608,35 +780,14 @@
             }
 
             function showAlert(message, type = 'info') {
-                const toast = document.getElementById('toast');
-                const toastIcon = document.getElementById('toast-icon');
-                const toastTitle = document.getElementById('toast-title');
-                const toastMessage = document.getElementById('toast-message');
+                const alertType = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
 
-                // Set icon and title based on type
-                switch(type) {
-                    case 'success':
-                        toastIcon.className = 'bi bi-check-circle-fill me-2 text-success';
-                        toastTitle.textContent = 'Success';
-                        break;
-                    case 'error':
-                        toastIcon.className = 'bi bi-exclamation-triangle-fill me-2 text-danger';
-                        toastTitle.textContent = 'Error';
-                        break;
-                    case 'warning':
-                        toastIcon.className = 'bi bi-exclamation-circle-fill me-2 text-warning';
-                        toastTitle.textContent = 'Warning';
-                        break;
-                    default:
-                        toastIcon.className = 'bi bi-info-circle me-2 text-info';
-                        toastTitle.textContent = 'Information';
-                }
-
-                toastMessage.textContent = message;
-
-                // Show toast
-                const bsToast = new bootstrap.Toast(toast);
-                bsToast.show();
+                Swal.fire({
+                    icon: alertType,
+                    title: type === 'error' ? 'Error' : type === 'success' ? 'Success' : 'Info',
+                    text: message,
+                    confirmButtonText: 'OK'
+                });
             }
         });
     </script>

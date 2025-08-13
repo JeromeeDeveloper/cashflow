@@ -37,19 +37,25 @@
                     </li>
                 @elseif(Auth::user()->role === 'head')
                     <li class="sidebar-item {{ request()->routeIs('head.dashboard') ? 'active' : '' }}">
-                        <a href="{{ route('head.dashboard') }}" class='sidebar-link'>
-                            <i class="bi bi-grid-fill"></i>
+                        <a href="{{ route('head.dashboard') }}" class="sidebar-link">
+                            <i class="bi bi-grid-1x2-fill"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
                     <li class="sidebar-item {{ request()->routeIs('head.file') ? 'active' : '' }}">
-                        <a href="{{ route('head.file') }}" class='sidebar-link'>
+                        <a href="{{ route('head.file') }}" class="sidebar-link">
                             <i class="bi bi-cloud-arrow-up"></i>
                             <span>File Upload</span>
                         </a>
                     </li>
-                     <li class="sidebar-item {{ request()->routeIs('head.cashflow') ? 'active' : '' }}">
-                        <a href="{{ route('head.cashflow') }}" class='sidebar-link'>
+                    <li class="sidebar-item {{ request()->routeIs('head.gl-accounts*') ? 'active' : '' }}">
+                        <a href="{{ route('head.gl-accounts') }}" class="sidebar-link">
+                            <i class="bi bi-journal-text"></i>
+                            <span>GL Accounts</span>
+                        </a>
+                    </li>
+                    <li class="sidebar-item {{ request()->routeIs('head.cashflow*') ? 'active' : '' }}">
+                        <a href="{{ route('head.cashflow') }}" class="sidebar-link">
                             <i class="bi bi-cash-stack"></i>
                             <span>Cash Flow</span>
                         </a>

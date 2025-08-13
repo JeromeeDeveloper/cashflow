@@ -10,6 +10,7 @@ use App\Http\Controllers\Branch\CashflowController as BranchCashflowController;
 use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Head\FileController;
 use App\Http\Controllers\Head\CashflowController as HeadCashflowController;
+use App\Http\Controllers\Head\GLAccountController;
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -37,6 +38,15 @@ Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(f
     Route::get('/dashboard', [HeadDashboardController::class, 'index'])->name('dashboard');
     Route::get('/file', [FileController::class, 'index'])->name('file');
     Route::get('/cashflow', [HeadCashflowController::class, 'index'])->name('cashflow');
+    Route::get('/gl-accounts', [GLAccountController::class, 'index'])->name('gl-accounts');
+
+    // GL Accounts CRUD routes
+    Route::post('/gl-accounts', [GLAccountController::class, 'store'])->name('gl-accounts.store');
+    Route::get('/gl-accounts/{glAccount}', [GLAccountController::class, 'show'])->name('gl-accounts.show');
+    Route::put('/gl-accounts/{glAccount}', [GLAccountController::class, 'update'])->name('gl-accounts.update');
+    Route::delete('/gl-accounts/{glAccount}', [GLAccountController::class, 'destroy'])->name('gl-accounts.destroy');
+    Route::post('/gl-accounts/import', [GLAccountController::class, 'import'])->name('gl-accounts.import');
+    Route::get('/gl-accounts/list', [GLAccountController::class, 'getAccounts'])->name('gl-accounts.list');
 
     // Cashflow CRUD routes
     Route::get('/cashflows', [HeadCashflowController::class, 'getCashflows'])->name('cashflows.index');

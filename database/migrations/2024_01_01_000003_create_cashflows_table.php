@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('cashflow_file_id')->constrained('cashflow_files')->onDelete('cascade');
             $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
-
+            $table->foreignId('gl_account_id')->constrained('gl_accounts')->onDelete('cascade');
             // Period information
             $table->year('year');
             $table->string('month', 20); // January, February, etc.

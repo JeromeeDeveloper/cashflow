@@ -13,11 +13,10 @@ class Cashflow extends Model
     protected $fillable = [
         'cashflow_file_id',
         'branch_id',
+        'gl_account_id',
         'year',
         'month',
         'period',
-        'account_code',
-        'account_name',
         'account_type',
         'cashflow_category',
         'actual_amount',
@@ -62,5 +61,13 @@ class Cashflow extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Get the GL account that owns this cashflow.
+     */
+    public function glAccount(): BelongsTo
+    {
+        return $this->belongsTo(GLAccount::class);
     }
 }
