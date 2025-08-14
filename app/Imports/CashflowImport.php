@@ -65,6 +65,12 @@ class CashflowImport implements ToCollection, WithStartRow
                 continue;
             }
 
+            // Skip "Prepared by:" rows
+            if (str_contains(strtolower($accountCode), 'prepared by') || str_contains(strtolower($accountName), 'prepared by')) {
+                Log::info("Skipping 'Prepared by:' row: Code='{$accountCode}', Name='{$accountName}'");
+                continue;
+            }
+
             // Check for section headers (these might be in column A or B)
             if (str_contains(strtoupper($accountCode), 'CASH BEGINNING BALANCE') || str_contains(strtoupper($accountName), 'CASH BEGINNING BALANCE')) {
                 $currentSection = 'beginning_balance';
