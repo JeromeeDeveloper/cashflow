@@ -78,15 +78,25 @@ class CashflowImport implements ToCollection, WithStartRow
                 continue;
             }
 
+            // Check for ADD: RECEIPTS section
+            if (str_contains(strtoupper($accountCode), 'ADD: RECEIPTS') || str_contains(strtoupper($accountName), 'ADD: RECEIPTS') ||
+                str_contains(strtoupper($accountCode), 'ADD RECEIPTS') || str_contains(strtoupper($accountName), 'ADD RECEIPTS')) {
+                $currentSection = 'receipts';
+                Log::info("Entering RECEIPTS section");
+                continue;
+            }
+
             if (str_contains(strtoupper($accountCode), 'TOTAL CASH AVAILABLE') || str_contains(strtoupper($accountName), 'TOTAL CASH AVAILABLE')) {
                 $currentSection = 'cash_available';
                 $cashflowData['total_cash_available'] = $this->extractNumericValue($actualAmount);
                 continue;
             }
 
+            // Check for LESS: DISBURSEMENTS section
             if (str_contains(strtoupper($accountCode), 'LESS: DISBURSEMENTS') || str_contains(strtoupper($accountCode), 'LESS DISBURSEMENTS') ||
                 str_contains(strtoupper($accountName), 'LESS: DISBURSEMENTS') || str_contains(strtoupper($accountName), 'LESS DISBURSEMENTS')) {
                 $currentSection = 'disbursements';
+                Log::info("Entering DISBURSEMENTS section");
                 continue;
             }
 
@@ -103,7 +113,7 @@ class CashflowImport implements ToCollection, WithStartRow
             }
 
             // Process GL account entries
-            Log::info("Checking row: Code='{$accountCode}', Name='{$accountName}', Amount='{$actualAmount}', IsNumeric=" . ($this->isNumeric($actualAmount) ? 'true' : 'false'));
+            Log::info("Checking row: Code='{$accountCode}', Name='{$accountName}', Amount='{$actualAmount}', Section='{$currentSection}', IsNumeric=" . ($this->isNumeric($actualAmount) ? 'true' : 'false'));
 
             // Skip empty rows
             if (empty($accountName)) {
@@ -145,10 +155,10 @@ class CashflowImport implements ToCollection, WithStartRow
             if (!empty($actualAmount) && $this->isNumeric($actualAmount)) {
                 $amount = $this->extractNumericValue($actualAmount);
 
-                Log::info("Processing single account: Code='{$accountCode}', Name='{$accountName}', Amount='{$amount}'");
+                Log::info("Processing single account: Code='{$accountCode}', Name='{$accountName}', Amount='{$amount}', Section='{$currentSection}'");
 
-                            // Find or create GL account using account code and name
-            $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, $accountType);
+                // Find or create GL account using account code and name
+                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, $accountType);
 
                 Log::info("Single GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
 
@@ -723,6 +733,7 @@ class CashflowImport implements ToCollection, WithStartRow
                         'cashflow_file_id' => $this->cashflowFile->id,
                         'branch_id' => $this->branchId,
                         'gl_account_id' => $product['gl_account_id'],
+                        'section' => $product['section'], // Add section field
                         'year' => $this->year,
                         'month' => $this->month,
                         'period' => "{$this->month} {$this->year}",

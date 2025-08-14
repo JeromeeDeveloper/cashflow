@@ -17,16 +17,14 @@ class CashflowController extends Controller
      */
     public function index(): View
     {
-        $user = Auth::user();
+        $branch = Auth::user()->branch; // eager loaded in relationships
 
-        // Check if user has a branch
-        if (!$user->branch_id) {
+        if (!$branch) {
             abort(403, 'User is not associated with any branch.');
         }
 
-        $branch = $user->branch;
-        $cashflows = Cashflow::with(['branch', 'cashflowFile'])
-            ->where('branch_id', $user->branch_id)
+        $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->where('branch_id', $branch->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -38,17 +36,17 @@ class CashflowController extends Controller
      */
     public function getCashflows(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $branchId = optional(Auth::user()->branch)->id;
 
-        if (!$user->branch_id) {
+        if (!$branchId) {
             return response()->json([
                 'success' => false,
                 'message' => 'User is not associated with any branch.'
             ], 403);
         }
 
-        $query = Cashflow::with(['branch', 'cashflowFile'])
-            ->where('branch_id', $user->branch_id);
+        $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->where('branch_id', $branchId);
 
         // Filter by year
         if ($request->filled('year')) {
@@ -62,14 +60,14 @@ class CashflowController extends Controller
 
         // Filter by category
         if ($request->filled('category')) {
-            $query->where('cashflow_category', $request->category);
+            $query->where('category', $request->category);
         }
 
         $cashflows = $query->orderBy('created_at', 'desc')->get();
 
         return response()->json([
             'success' => true,
-            'data' => $cashflows
+            'cashflows' => $cashflows
         ]);
     }
 
@@ -78,21 +76,13 @@ class CashflowController extends Controller
      */
     public function show(Cashflow $cashflow): JsonResponse
     {
-        $user = Auth::user();
+        $this->authorizeCashflow($cashflow);
 
-        // Ensure user can only view cashflows from their branch
-        if ($cashflow->branch_id !== $user->branch_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized access to this cashflow.'
-            ], 403);
-        }
-
-        $cashflow->load(['branch', 'cashflowFile']);
+        $cashflow->load(['branch', 'cashflowFile', 'glAccount']);
 
         return response()->json([
             'success' => true,
-            'data' => $cashflow
+            'cashflow' => $cashflow
         ]);
     }
 
@@ -101,16 +91,16 @@ class CashflowController extends Controller
      */
     public function getSummary(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $branchId = optional(Auth::user()->branch)->id;
 
-        if (!$user->branch_id) {
+        if (!$branchId) {
             return response()->json([
                 'success' => false,
                 'message' => 'User is not associated with any branch.'
             ], 403);
         }
 
-        $query = Cashflow::where('branch_id', $user->branch_id);
+        $query = Cashflow::where('branch_id', $branchId);
 
         // Apply filters
         if ($request->filled('year')) {
@@ -139,17 +129,17 @@ class CashflowController extends Controller
      */
     public function export(Request $request): JsonResponse
     {
-        $user = Auth::user();
+        $branchId = optional(Auth::user()->branch)->id;
 
-        if (!$user->branch_id) {
+        if (!$branchId) {
             return response()->json([
                 'success' => false,
                 'message' => 'User is not associated with any branch.'
             ], 403);
         }
 
-        $query = Cashflow::with(['branch', 'cashflowFile'])
-            ->where('branch_id', $user->branch_id);
+        $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->where('branch_id', $branchId);
 
         // Apply filters
         if ($request->filled('year')) {
@@ -168,6 +158,51 @@ class CashflowController extends Controller
             'message' => 'Export data prepared successfully',
             'data' => $cashflows
         ]);
+    }
+
+    /**
+     * Update the specified cashflow entry.
+     */
+    public function update(Request $request, Cashflow $cashflow): JsonResponse
+    {
+        $this->authorizeCashflow($cashflow);
+
+        $validated = $request->validate([
+            'actual_amount' => 'required|numeric|min:0',
+            'total' => 'nullable|numeric|min:0',
+        ]);
+
+        $cashflow->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cash flow entry updated successfully',
+            'cashflow' => $cashflow->fresh()
+        ]);
+    }
+
+    /**
+     * Remove the specified cashflow entry.
+     */
+    public function destroy(Cashflow $cashflow): JsonResponse
+    {
+        $this->authorizeCashflow($cashflow);
+
+        $cashflow->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Cash flow entry deleted successfully'
+        ]);
+    }
+
+    /**
+     * Authorize that the user can access this cashflow (must be from their branch)
+     */
+    private function authorizeCashflow(Cashflow $cashflow): void
+    {
+        $branchId = optional(Auth::user()->branch)->id;
+        abort_if($cashflow->branch_id !== $branchId, 403, 'Unauthorized access to this cashflow.');
     }
 }
 

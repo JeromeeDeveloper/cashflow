@@ -54,6 +54,13 @@
                                             <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                         @endforeach
                                     </select>
+                                    <select id="export_period" class="form-select" style="max-width: 150px;">
+                                        <option value="3">3 Months</option>
+                                        <option value="6">6 Months</option>
+                                        <option value="12">12 Months</option>
+                                        <option value="36">3 Years</option>
+                                        <option value="60">5 Years</option>
+                                    </select>
 
                                     <button id="btnAdd" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Add Entry</button>
                                     <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export</button>
@@ -739,6 +746,7 @@
             function exportCashflows() {
                 const monthInput = document.getElementById('reporting_period');
                 const branchFilter = document.getElementById('branch_filter');
+                const exportPeriod = document.getElementById('export_period');
 
                 const [year, month] = monthInput.value.split('-');
                 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -747,23 +755,56 @@
                 const params = new URLSearchParams({
                     year: year,
                     month: monthNames[parseInt(month) - 1],
-                    branch_id: branchFilter.value
+                    branch_id: branchFilter.value,
+                    period: exportPeriod.value
                 });
 
-                fetch(`{{ route('head.cashflows.export') }}?${params}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // In a real app, you might download a file
-                            // For now, we'll show the data
-                            console.log('Export data:', data.data);
-                            showAlert('Export data prepared successfully', 'success');
+                // Show loading state
+                const exportBtn = document.getElementById('btnExport');
+                const originalText = exportBtn.innerHTML;
+                exportBtn.disabled = true;
+                exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Exporting...';
+
+                                // Create download link
+                const downloadUrl = `{{ route('head.cashflows.export') }}?${params}`;
+
+                // Use fetch to trigger the download
+                fetch(downloadUrl)
+                    .then(response => {
+                        if (response.ok) {
+                            return response.blob();
                         }
+                        throw new Error('Export failed');
+                    })
+                    .then(blob => {
+                        // Create blob URL and download
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+
+                        // Create filename based on selected period
+                        const periodValue = parseInt(exportPeriod.value);
+                        const periodText = periodValue <= 12 ? `${periodValue}months` : `${periodValue}years`;
+                        link.download = `cashflow_${monthNames[parseInt(month) - 1]}_${year}_${periodText}.xlsx`;
+
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        // Clean up blob URL
+                        window.URL.revokeObjectURL(url);
                     })
                     .catch(error => {
-                        console.error('Error exporting cashflows:', error);
-                        showAlert('Error exporting cashflows', 'error');
+                        console.error('Export error:', error);
+                        showAlert('Export failed. Please try again.', 'error');
                     });
+
+                // Reset button state
+                setTimeout(() => {
+                    exportBtn.disabled = false;
+                    exportBtn.innerHTML = originalText;
+                    showAlert('Export completed successfully!', 'success');
+                }, 1000);
             }
 
             function getAccountTypeBadge(type) {
@@ -794,35 +835,8 @@
             }
 
             function showAlert(message, type = 'info') {
-                const toast = document.getElementById('toast');
-                const toastIcon = document.getElementById('toast-icon');
-                const toastTitle = document.getElementById('toast-title');
-                const toastMessage = document.getElementById('toast-message');
-
-                // Set icon and title based on type
-                switch(type) {
-                    case 'success':
-                        toastIcon.className = 'bi bi-check-circle-fill me-2 text-success';
-                        toastTitle.textContent = 'Success';
-                        break;
-                    case 'error':
-                        toastIcon.className = 'bi bi-exclamation-triangle-fill me-2 text-danger';
-                        toastTitle.textContent = 'Error';
-                        break;
-                    case 'warning':
-                        toastIcon.className = 'bi bi-exclamation-circle-fill me-2 text-warning';
-                        toastTitle.textContent = 'Warning';
-                        break;
-                    default:
-                        toastIcon.className = 'bi bi-info-circle me-2 text-info';
-                        toastTitle.textContent = 'Information';
-                }
-
-                toastMessage.textContent = message;
-
-                // Show toast
-                const bsToast = new bootstrap.Toast(toast);
-                bsToast.show();
+                console.log(`${type.toUpperCase()}: ${message}`);
+                alert(`${type.toUpperCase()}: ${message}`);
             }
         });
     </script>

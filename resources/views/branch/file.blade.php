@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Branch File Upload</title>
+    <title>Cash Flow File Upload - {{ $branch->name ?? 'Branch' }}</title>
+
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.css') }}">
+
     <link rel="stylesheet" href="{{ asset('assets/vendors/iconly/bold.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
@@ -16,6 +19,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.svg') }}" type="image/x-icon">
 </head>
+
 <body>
     @include('layouts.header')
     <div id="app">
@@ -29,12 +33,15 @@
 
             <div class="page-heading d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div>
-                    <h3>Cash Flow File Upload</h3>
-                    <p class="text-subtitle text-muted">Upload cash flow Excel files for your branch</p>
+                    <h3>Cash Flow File Management</h3>
+                    <p class="text-subtitle text-muted">Upload and manage cash flow Excel files for {{ $branch->name ?? 'your branch' }}</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    <span class="badge rounded-pill bg-primary fs-6 px-3 py-2">
+                        <i class="bi bi-building me-2"></i>{{ $branch->name ?? 'Branch' }}
+                    </span>
                     <button id="btnAdd" class="btn btn-primary">
-                        <i class="bi bi-plus-circle me-2"></i>Upload File
+                        <i class="bi bi-cloud-arrow-up me-2"></i>Upload Excel File
                     </button>
                 </div>
             </div>
@@ -44,23 +51,29 @@
                     <div class="col-12">
                         <div class="card">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                <h4 class="mb-0">Uploaded Files ({{ $branch->name ?? 'N/A' }})</h4>
+                                <h4 class="mb-0">Uploaded Cash Flow Files - {{ $branch->name ?? 'Branch' }}</h4>
                                 <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <div class="input-group" style="max-width: 200px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                                        <input type="text" id="searchInput" class="form-control" placeholder="Search files...">
+                                    </div>
                                     <div class="input-group" style="max-width: 150px;">
-                                        <span class="input-group-text bg-light"><i class="bi bi-calendar"></i></span>
+                                        <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
                                         <select id="year_filter" class="form-select">
                                             <option value="">All Years</option>
-                                            @for($y = now()->year; $y >= 2020; $y--)
+                                            @for($y = date('Y'); $y >= 2020; $y--)
                                                 <option value="{{ $y }}">{{ $y }}</option>
                                             @endfor
                                         </select>
                                     </div>
-                                    <div class="input-group" style="max-width: 160px;">
-                                        <span class="input-group-text bg-light"><i class="bi bi-flag"></i></span>
+                                    <div class="input-group" style="max-width: 150px;">
+                                        <span class="input-group-text bg-light"><i class="bi bi-check-circle"></i></span>
                                         <select id="status_filter" class="form-select">
                                             <option value="">All Status</option>
                                             <option value="pending">Pending</option>
+                                            <option value="processing">Processing</option>
                                             <option value="processed">Processed</option>
+                                            <option value="error">Error</option>
                                         </select>
                                     </div>
                                 </div>
@@ -87,13 +100,12 @@
                                                     <td>{{ $file->month }} {{ $file->year }}</td>
                                                     <td>{{ $file->uploaded_by ?? 'N/A' }}</td>
                                                     <td>
-                                                        <span class="badge bg-{{ $file->status === 'processed' ? 'success' : 'secondary' }}">{{ ucfirst($file->status) }}</span>
+                                                        <span class="badge bg-{{ $file->status === 'processed' ? 'success' : ($file->status === 'processing' ? 'warning' : ($file->status === 'error' ? 'danger' : 'secondary')) }}">{{ ucfirst($file->status) }}</span>
                                                     </td>
                                                     <td>{{ $file->created_at ? $file->created_at->format('M d, Y H:i') : 'N/A' }}</td>
                                                     <td class="text-end">
                                                         <div class="btn-group" role="group">
                                                             <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="{{ $file->id }}" title="View Details"><i class="bi bi-eye"></i></button>
-                                                            <button type="button" class="btn btn-sm btn-outline-success btn-process" data-id="{{ $file->id }}" title="Process"><i class="bi bi-cpu"></i></button>
                                                             <button type="button" class="btn btn-sm btn-outline-secondary btn-download" data-id="{{ $file->id }}" title="Download"><i class="bi bi-download"></i></button>
                                                             <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="{{ $file->id }}" title="Delete"><i class="bi bi-trash"></i></button>
                                                         </div>
@@ -101,9 +113,11 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="7" class="text-center text-muted py-4">
+                                                    <td colspan="6" class="text-center text-muted py-4">
                                                         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                                        No files found
+                                                        No files uploaded yet
+                                                        <br>
+                                                        <small>Upload your first cash flow Excel file to get started</small>
                                                     </td>
                                                 </tr>
                                             @endforelse
@@ -115,108 +129,107 @@
                     </div>
                 </section>
             </div>
+        </div>
+    </div>
 
-            <!-- Upload Modal -->
-            <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="uploadModalLabel">Upload Cashflow File</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <form id="uploadForm">
-                            <div class="modal-body">
-                                <div class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label">Branch</label>
-                                        <input type="text" class="form-control" value="{{ $branch->name ?? 'N/A' }}" readonly>
-                                        <small class="text-muted">This upload will be saved under your branch.</small>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="year" class="form-label">Year <span class="text-danger">*</span></label>
-                                        <select class="form-select" id="year" name="year" required>
-                                            <option value="">Select Year</option>
-                                            @for($y = now()->year; $y >= 2020; $y--)
-                                                <option value="{{ $y }}">{{ $y }}</option>
-                                            @endfor
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label for="month" class="form-label">Month <span class="text-danger">*</span></label>
-                                        <select class="form-select" id="month" name="month" required>
-                                            <option value="">Select Month</option>
-                                            @foreach(['January','February','March','April','May','June','July','August','September','October','November','December'] as $m)
-                                                <option value="{{ $m }}">{{ $m }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>
-                                        <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
-                                        <small class="text-muted">Only Excel files (.xlsx, .xls) up to 10MB</small>
-                                    </div>
-                                    <div class="col-12">
-                                        <label for="description" class="form-label">Description</label>
-                                        <textarea class="form-control" id="description" name="description" rows="2" placeholder="Optional"></textarea>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="modal-footer">
-                                <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Cancel</button>
-                                <button type="submit" class="btn btn-primary"><i class="bi bi-upload me-2"></i>Upload</button>
-                            </div>
-                        </form>
-                    </div>
+    <!-- Upload File Modal -->
+    <div class="modal fade" id="uploadModal" tabindex="-1" aria-labelledby="uploadModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="uploadModalLabel">Upload Cash Flow Excel File</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-            </div>
-
-            <!-- View Modal -->
-            <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="viewModalLabel">File Details</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">File Name:</label>
-                                    <p id="view_file_name"></p>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>
+                                    <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
+                                    <div class="form-text">Upload Excel file (.xlsx or .xls) containing cash flow data</div>
                                 </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Original Name:</label>
-                                    <p id="view_original_name"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Year:</label>
-                                    <p id="view_year"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Month:</label>
-                                    <p id="view_month"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Uploaded By:</label>
-                                    <p id="view_uploaded_by"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Status:</label>
-                                    <p id="view_status"></p>
-                                </div>
-                                <div class="col-12">
-                                    <label class="form-label fw-bold">Description:</label>
-                                    <p id="view_description"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="year" class="form-label">Year <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="year" name="year" required>
+                                        <option value="">Select Year</option>
+                                        @for($y = date('Y'); $y >= 2020; $y--)
+                                            <option value="{{ $y }}">{{ $y }}</option>
+                                        @endfor
+                                    </select>
                                 </div>
                             </div>
                         </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Close</button>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="month" class="form-label">Month <span class="text-danger">*</span></label>
+                                    <select class="form-select" id="month" name="month" required>
+                                        <option value="">Select Month</option>
+                                        <option value="January">January</option>
+                                        <option value="February">February</option>
+                                        <option value="March">March</option>
+                                        <option value="April">April</option>
+                                        <option value="May">May</option>
+                                        <option value="June">June</option>
+                                        <option value="July">July</option>
+                                        <option value="August">August</option>
+                                        <option value="September">September</option>
+                                        <option value="October">October</option>
+                                        <option value="November">November</option>
+                                        <option value="December">December</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="description" class="form-label">Description</label>
+                                    <textarea class="form-control" id="description" name="description" rows="2" placeholder="Brief description of the file content"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading"><i class="bi bi-info-circle me-2"></i>File Format Requirements</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>Column A:</strong> Account Code (e.g., 1001, 2001)</li>
+                                <li><strong>Column B:</strong> Account Name (e.g., "Cash", "Accounts Receivable")</li>
+                                <li><strong>Column C:</strong> Actual Amount (numeric values)</li>
+                                <li><strong>Column D:</strong> Projection Percentage (optional, numeric values)</li>
+                                <li><strong>Note:</strong> File will be processed automatically after upload</li>
+                            </ul>
                         </div>
                     </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-cloud-upload me-2"></i>Upload & Process
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- View File Details Modal -->
+    <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalLabel">File Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="fileDetails">
+                        <!-- File details will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
-
         </div>
     </div>
 
@@ -225,147 +238,217 @@
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
     <script src="{{ asset('assets/vendors/sweetalert2/sweetalert2.all.min.js') }}"></script>
     <script src="{{ asset('assets/js/main.js') }}"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        // Initialize DataTable
+        const table = new simpleDatatables.DataTable("#table-files", {
+            searchable: true,
+            fixedHeight: true,
+            perPage: 10
+        });
 
-            const uploadModal = new bootstrap.Modal(document.getElementById('uploadModal'));
-            const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+        // Search functionality
+        document.getElementById('searchInput').addEventListener('keyup', function() {
+            table.search(this.value);
+        });
 
-            document.getElementById('btnAdd').addEventListener('click', function() {
-                document.getElementById('uploadForm').reset();
-                uploadModal.show();
-            });
-
-            document.getElementById('uploadForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-                uploadFile();
-            });
-
-            document.querySelectorAll('.btn-view').forEach(btn => btn.addEventListener('click', function(){
-                loadFileForView(this.dataset.id);
-                viewModal.show();
-            }));
-
-            document.querySelectorAll('.btn-process').forEach(btn => btn.addEventListener('click', function(){
-                processFile(this.dataset.id);
-            }));
-
-            document.querySelectorAll('.btn-download').forEach(btn => btn.addEventListener('click', function(){
-                downloadFile(this.dataset.id);
-            }));
-
-            document.querySelectorAll('.btn-delete').forEach(btn => btn.addEventListener('click', function(){
-                deleteFile(this.dataset.id);
-            }));
-
-            document.getElementById('year_filter').addEventListener('change', filterFiles);
-            document.getElementById('status_filter').addEventListener('change', filterFiles);
-
-            function uploadFile() {
-                const form = document.getElementById('uploadForm');
-                const formData = new FormData(form);
-
-                if (!form.year.value || !form.month.value || !form.file.files[0]) {
-                    Swal.fire({ icon: 'error', title: 'Error', text: 'Please complete all required fields' });
-                    return;
-                }
-
-                Swal.fire({ title: 'Uploading...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-                fetch('/branch/files', {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': csrfToken },
-                    body: formData,
-                }).then(r => r.json()).then(data => {
-                    Swal.close();
-                    if (data.success) {
-                        Swal.fire({ icon: 'success', title: 'Uploaded', text: data.message });
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Upload Failed', text: data.message || 'Error' });
-                    }
-                }).catch(() => {
-                    Swal.close();
-                    Swal.fire({ icon: 'error', title: 'Upload Failed', text: 'Network error' });
-                });
-            }
-
-            function loadFileForView(id) {
-                fetch(`/branch/files/${id}`).then(r => r.json()).then(data => {
-                    if (data.success) {
-                        const f = data.data;
-                        document.getElementById('view_file_name').textContent = f.file_name;
-                        document.getElementById('view_original_name').textContent = f.original_name;
-                        document.getElementById('view_year').textContent = f.year;
-                        document.getElementById('view_month').textContent = f.month;
-                        document.getElementById('view_uploaded_by').textContent = f.uploaded_by || 'N/A';
-                        document.getElementById('view_status').textContent = f.status;
-                        document.getElementById('view_description').textContent = f.description || '—';
-                    }
-                });
-            }
-
-            function processFile(id) {
-                Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-                fetch(`/branch/files/${id}/process`, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': csrfToken },
-                }).then(r => r.json()).then(data => {
-                    Swal.close();
-                    if (data.success) {
-                        Swal.fire({ icon: 'success', title: 'Processed', text: data.message });
-                        setTimeout(() => location.reload(), 1000);
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Processing Failed', text: data.message || 'Error' });
-                    }
-                }).catch(() => {
-                    Swal.close();
-                    Swal.fire({ icon: 'error', title: 'Processing Failed', text: 'Network error' });
-                });
-            }
-
-            function downloadFile(id) {
-                fetch(`/branch/files/${id}/download`).then(r => r.json()).then(data => {
-                    if (data.success && data.url) {
-                        window.open(data.url, '_blank');
-                    }
-                });
-            }
-
-            function deleteFile(id) {
-                Swal.fire({ title: 'Delete file?', icon: 'warning', showCancelButton: true }).then(res => {
-                    if (!res.isConfirmed) return;
-                    fetch(`/branch/files/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': csrfToken } })
-                        .then(r => r.json()).then(data => {
-                            if (data.success) {
-                                Swal.fire({ icon: 'success', title: 'Deleted' });
-                                setTimeout(() => location.reload(), 800);
-                            } else {
-                                Swal.fire({ icon: 'error', title: 'Delete Failed', text: data.message || 'Error' });
-                            }
-                        });
-                });
-            }
-
-            function filterFiles() {
-                const year = document.getElementById('year_filter').value;
-                const status = document.getElementById('status_filter').value;
-                const rows = document.querySelectorAll('#table-files tbody tr');
-                rows.forEach(row => {
-                    let show = true;
-                    if (year) {
-                        const period = row.cells[2].textContent;
-                        if (!period.includes(year)) show = false;
-                    }
-                    if (status) {
-                        const statusText = row.cells[4].innerText.trim().toLowerCase();
-                        if (!statusText.includes(status.toLowerCase())) show = false;
-                    }
-                    row.style.display = show ? '' : 'none';
-                });
+        // Year filter
+        document.getElementById('year_filter').addEventListener('change', function() {
+            const year = this.value;
+            if (year) {
+                table.search(year);
+            } else {
+                table.search('');
             }
         });
+
+        // Status filter
+        document.getElementById('status_filter').addEventListener('change', function() {
+            const status = this.value;
+            if (status) {
+                table.search(status);
+            } else {
+                table.search('');
+            }
+        });
+
+        // Upload modal
+        document.getElementById('btnAdd').addEventListener('click', function() {
+            const modal = new bootstrap.Modal(document.getElementById('uploadModal'));
+            modal.show();
+        });
+
+        // Upload form submission
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading...';
+
+            // Show loading alert
+            Swal.fire({
+                title: 'Uploading File...',
+                text: 'Please wait while we process your Excel file',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch('/branch/file/upload', {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Upload Successful!',
+                        text: data.message,
+                        confirmButtonText: 'Great!'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    throw new Error(data.message || 'Upload failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Upload Failed',
+                    text: error.message || 'An error occurred during upload',
+                    confirmButtonText: 'Try Again'
+                });
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+
+        // View file details
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-view')) {
+                const fileId = e.target.closest('.btn-view').getAttribute('data-id');
+                loadFileDetails(fileId);
+            }
+        });
+
+        function loadFileDetails(fileId) {
+            fetch(`/branch/file/${fileId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('fileDetails').innerHTML = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>File Name:</strong> ${data.file.file_name}</p>
+                                    <p><strong>Original Name:</strong> ${data.file.original_name}</p>
+                                    <p><strong>Period:</strong> ${data.file.month} ${data.file.year}</p>
+                                    <p><strong>Status:</strong> <span class="badge bg-${data.file.status === 'processed' ? 'success' : 'secondary'}">${data.file.status}</span></p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Uploaded By:</strong> ${data.file.uploaded_by || 'N/A'}</p>
+                                    <p><strong>Upload Date:</strong> ${data.file.created_at}</p>
+                                    <p><strong>File Size:</strong> ${data.file.file_size || 'N/A'}</p>
+                                    <p><strong>Description:</strong> ${data.file.description || 'N/A'}</p>
+                                </div>
+                            </div>
+                        `;
+
+                        const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+                        modal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Failed to load file details',
+                        confirmButtonText: 'OK'
+                    });
+                });
+        }
+
+
+
+        // Download file
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-download')) {
+                const fileId = e.target.closest('.btn-download').getAttribute('data-id');
+                window.open(`/branch/file/${fileId}/download`, '_blank');
+            }
+        });
+
+        // Delete file
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-delete')) {
+                const fileId = e.target.closest('.btn-delete').getAttribute('data-id');
+                deleteFile(fileId);
+            }
+        });
+
+        function deleteFile(fileId) {
+            Swal.fire({
+                title: 'Delete File?',
+                text: 'This action cannot be undone. All associated data will be permanently deleted.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Yes, Delete',
+                cancelButtonText: 'Cancel',
+                confirmButtonColor: '#dc3545'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    deleteFileAction(fileId);
+                }
+            });
+        }
+
+        function deleteFileAction(fileId) {
+            fetch(`/branch/file/${fileId}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'File Deleted!',
+                        text: data.message,
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        location.reload();
+                    });
+                } else {
+                    throw new Error(data.message || 'Delete failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Delete Failed',
+                    text: error.message || 'An error occurred during deletion',
+                    confirmButtonText: 'Try Again'
+                });
+            });
+        }
     </script>
 </body>
 </html>

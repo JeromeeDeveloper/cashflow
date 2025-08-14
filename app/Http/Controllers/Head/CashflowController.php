@@ -236,13 +236,15 @@ class CashflowController extends Controller
         $year = $request->integer('year');
         $month = $request->get('month');
         $branchId = $request->filled('branch_id') ? (int) $request->branch_id : null;
+        $period = $request->integer('period', 3); // Default to 3 months
 
         $fileNameParts = ['cashflow'];
         if ($branchId) { $fileNameParts[] = 'branch_'.$branchId; }
         if ($month) { $fileNameParts[] = strtolower($month); }
         if ($year) { $fileNameParts[] = (string) $year; }
+        $fileNameParts[] = $period . ($period <= 12 ? 'months' : 'years');
         $fileName = implode('_', $fileNameParts) . '.xlsx';
 
-        return Excel::download(new CashflowExport($year, $month, $branchId), $fileName);
+        return Excel::download(new CashflowExport($year, $month, $branchId, $period), $fileName);
     }
 }

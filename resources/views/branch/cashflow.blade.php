@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Cash Flow - {{ $branch->name }}</title>
+    <title>Cash Flow - {{ $branch->name ?? 'Branch' }}</title>
 
     <link rel="preconnect" href="https://fonts.gstatic.com">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -32,12 +32,12 @@
 
             <div class="page-heading d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <div>
-                    <h3>Cash Flow - {{ $branch->name }}</h3>
+                    <h3>Cash Flow - {{ $branch->name ?? 'Branch' }}</h3>
                     <p class="text-subtitle text-muted">View cash flow data for your branch</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                     <span class="badge rounded-pill bg-primary fs-6 px-3 py-2">
-                        <i class="bi bi-building me-2"></i>{{ $branch->name }}
+                        <i class="bi bi-building me-2"></i>{{ $branch->name ?? 'Branch' }}
                     </span>
                 </div>
             </div>
@@ -73,19 +73,17 @@
                                                 <th>Account Code</th>
                                                 <th>Account Name</th>
                                                 <th>Account Type</th>
-                                                <th>Category</th>
                                                 <th class="text-end">Actual Amount</th>
-                                                <th class="text-end">Projection %</th>
-                                                <th class="text-end">Projected Amount</th>
                                                 <th class="text-end">Total</th>
+                                                <th>Period</th>
                                                 <th class="text-end">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @forelse($cashflows as $cashflow)
+                                            @forelse($cashflows ?? [] as $cashflow)
                                                 <tr data-id="{{ $cashflow->id }}">
-                                                    <td>{{ $cashflow->account_code }}</td>
-                                                    <td>{{ $cashflow->account_name }}</td>
+                                                    <td>{{ $cashflow->glAccount->account_code ?? 'N/A' }}</td>
+                                                    <td>{{ $cashflow->glAccount->account_name ?? $cashflow->account_name ?? 'N/A' }}</td>
                                                     <td>
                                                         @switch($cashflow->account_type)
                                                             @case('Asset')
@@ -101,68 +99,69 @@
                                                                 <span class="badge bg-info">{{ $cashflow->account_type }}</span>
                                                                 @break
                                                             @case('Expense')
-                                                                <span class="badge bg-warning text-dark">{{ $cashflow->account_type }}</span>
+                                                                <span class="badge bg-warning">{{ $cashflow->account_type }}</span>
                                                                 @break
                                                             @default
-                                                                <span class="badge bg-secondary">{{ $cashflow->account_type }}</span>
+                                                                <span class="badge bg-secondary">{{ $cashflow->account_type ?? 'N/A' }}</span>
                                                         @endswitch
                                                     </td>
                                                     <td>
-                                                        @switch($cashflow->cashflow_category)
-                                                            @case('Operating')
-                                                                <span class="badge bg-info text-dark">{{ $cashflow->cashflow_category }}</span>
+                                                        @switch($cashflow->category)
+                                                            @case('Receipt')
+                                                                <span class="badge bg-success">{{ $cashflow->category }}</span>
                                                                 @break
-                                                            @case('Investing')
-                                                                <span class="badge bg-warning text-dark">{{ $cashflow->cashflow_category }}</span>
-                                                                @break
-                                                            @case('Financing')
-                                                                <span class="badge bg-success">{{ $cashflow->cashflow_category }}</span>
+                                                            @case('Disbursement')
+                                                                <span class="badge bg-danger">{{ $cashflow->category }}</span>
                                                                 @break
                                                             @default
-                                                                <span class="badge bg-secondary">{{ $cashflow->cashflow_category }}</span>
+                                                                <span class="badge bg-secondary">{{ $cashflow->category ?? 'N/A' }}</span>
                                                         @endswitch
                                                     </td>
-                                                                                                    <td class="text-end">{{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}</td>
-                                                <td class="text-end">{{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) : '0.00' }}%</td>
-                                                <td class="text-end">{{ $cashflow->projected_amount ? number_format($cashflow->projected_amount, 2) : '0.00' }}</td>
-                                                <td class="text-end">{{ $cashflow->total ? number_format($cashflow->total, 2) : '0.00' }}</td>
                                                     <td class="text-end">
-                                                        <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $cashflow->id }}">
-                                                            <i class="bi bi-eye"></i>
-                                                        </button>
+                                                        <span class="fw-medium text-primary">
+                                                            {{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <span class="text-muted">
+                                                            {{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) . '%' : '0.00%' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <span class="fw-medium text-success">
+                                                            {{ $cashflow->projected_amount ? number_format($cashflow->projected_amount, 2) : '0.00' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <span class="fw-bold text-dark">
+                                                            {{ $cashflow->total ? number_format($cashflow->total, 2) : '0.00' }}
+                                                        </span>
+                                                    </td>
+                                                    <td class="text-end">
+                                                        <div class="btn-group" role="group">
+                                                            <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="{{ $cashflow->id }}" title="View Details">
+                                                                <i class="bi bi-eye"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-warning btn-edit" data-id="{{ $cashflow->id }}" title="Edit Entry">
+                                                                <i class="bi bi-pencil"></i>
+                                                            </button>
+                                                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="{{ $cashflow->id }}" title="Delete Entry">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="8" class="text-center text-muted py-4">
+                                                    <td colspan="9" class="text-center text-muted py-4">
                                                         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                                        No cash flow entries found for your branch
+                                                        No cash flow data found
+                                                        <br>
+                                                        <small>Upload cash flow files to see data here</small>
                                                     </td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
-                                        <tfoot>
-                                            <tr class="table-light">
-                                                <th colspan="7" class="text-end">Total Operating</th>
-                                                <th class="text-end" id="totalOperating">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                            <tr class="table-light">
-                                                <th colspan="7" class="text-end">Total Investing</th>
-                                                <th class="text-end" id="totalInvesting">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                            <tr class="table-light">
-                                                <th colspan="7" class="text-end">Total Financing</th>
-                                                <th class="text-end" id="totalFinancing">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                            <tr class="table-secondary">
-                                                <th colspan="7" class="text-end">Net Cash Flow</th>
-                                                <th class="text-end" id="netCashflow">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -170,321 +169,402 @@
                     </div>
                 </section>
             </div>
-
-            <!-- View Modal -->
-            <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="viewModalLabel">Cash Flow Details</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="row g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Account Code:</label>
-                                    <p id="view_account_code"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Account Name:</label>
-                                    <p id="view_account_name"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Account Type:</label>
-                                    <p id="view_account_type"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Category:</label>
-                                    <p id="view_cashflow_category"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Branch:</label>
-                                    <p id="view_branch"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Period:</label>
-                                    <p id="view_period"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Actual Amount:</label>
-                                    <p id="view_actual_amount"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Projection %:</label>
-                                    <p id="view_projection_percentage"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Projected Amount:</label>
-                                    <p id="view_projected_amount"></p>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fw-bold">Total:</label>
-                                    <p id="view_total"></p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
+    <!-- View Cash Flow Details Modal -->
+    <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="viewModalLabel">Cash Flow Entry Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="cashflowDetails">
+                        <!-- Cash flow details will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Cash Flow Entry Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">Edit Cash Flow Entry</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="editForm">
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_account_code" class="form-label">Account Code</label>
+                                    <input type="text" class="form-control" id="edit_account_code" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_account_name" class="form-label">Account Name</label>
+                                    <input type="text" class="form-control" id="edit_account_name" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_actual_amount" class="form-label">Actual Amount <span class="text-danger">*</span></label>
+                                    <input type="number" class="form-control" id="edit_actual_amount" name="actual_amount" step="0.01" min="0" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="edit_total" class="form-label">Total</label>
+                                    <input type="number" class="form-control" id="edit_total" name="total" step="0.01" min="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle me-2"></i>Update Entry
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('assets/js/bootstrap.js') }}"></script>
     <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
-    <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
-    <script src="{{ asset('assets/js/main.js') }}"></script>
+    <script src="{{ asset('assets/js/app.js') }}"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // CSRF token for Laravel
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+        // Initialize DataTable
+        const table = new simpleDatatables.DataTable("#table-cashflow", {
+            searchable: true,
+            fixedHeight: true,
+            perPage: 25
+        });
 
-            // Enable Bootstrap tooltips
-            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
-                new bootstrap.Tooltip(tooltipTriggerEl);
-            });
+        // Load cash flows on page load - DISABLED to prevent flash
+        // document.addEventListener('DOMContentLoaded', function() {
+        //     loadCashflows();
+        // });
 
-            // Initialize DataTable
-            const cashflowTable = document.querySelector('#table-cashflow');
-            if (cashflowTable && window.simpleDatatables) {
-                new simpleDatatables.DataTable(cashflowTable);
-            }
+        // Refresh button - simple page reload like head cashflow
+        document.getElementById('btnRefresh').addEventListener('click', function() {
+            location.reload();
+        });
 
-            // Modal instance
-            const viewModal = new bootstrap.Modal(document.getElementById('viewModal'));
+        // Export button
+        document.getElementById('btnExport').addEventListener('click', function() {
+            exportCashflows();
+        });
 
-            // Load initial data and calculate totals
-            updateSummary();
+        // Period change - simple page reload like head cashflow
+        document.getElementById('reporting_period').addEventListener('change', function() {
+            // For now, just update the display without reloading
+            // This prevents the flash issue
+        });
 
-            // View buttons
-            document.querySelectorAll('.btn-view').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
-                    loadCashflowForView(id);
-                    viewModal.show();
-                });
-            });
+        // Load cash flows
+        function loadCashflows() {
+            const period = document.getElementById('reporting_period').value;
+            const [year, month] = period.split('-');
 
-            // Month filter
-            document.getElementById('reporting_period').addEventListener('change', function() {
-                loadCashflows();
-            });
+            // Show loading state
+            const tbody = document.querySelector('#table-cashflow tbody');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9" class="text-center text-muted py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <br>
+                        <small class="mt-2 d-block">Loading cash flow data...</small>
+                    </td>
+                </tr>
+            `;
 
-            // Refresh button
-            document.getElementById('btnRefresh').addEventListener('click', function() {
-                this.disabled = true;
-                this.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Refreshing...';
-
-                loadCashflows();
-                updateSummary();
-
-                setTimeout(() => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="bi bi-arrow-clockwise me-2"></i>Refresh';
-                }, 1000);
-            });
-
-            // Export button
-            document.getElementById('btnExport').addEventListener('click', function() {
-                exportCashflows();
-            });
-
-            function loadCashflows() {
-                const monthInput = document.getElementById('reporting_period');
-
-                const [year, month] = monthInput.value.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
-
-                const params = new URLSearchParams({
-                    year: year,
-                    month: monthNames[parseInt(month) - 1]
-                });
-
-                fetch(`{{ route('branch.cashflows.index') }}?${params}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            updateTable(data.data);
-                            updateSummary();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading cashflows:', error);
-                        showAlert('Error loading cashflows', 'error');
-                    });
-            }
-
-            function updateTable(cashflows) {
-                const tbody = document.querySelector('#table-cashflow tbody');
-                tbody.innerHTML = '';
-
-                if (cashflows.length === 0) {
+            fetch(`/branch/cashflows?year=${year}&month=${month}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        displayCashflows(data.cashflows);
+                    } else {
+                        throw new Error(data.message || 'Failed to load data');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="8" class="text-center text-muted py-4">
-                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                No cash flow entries found for your branch
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="bi bi-exclamation-triangle fs-1 text-warning d-block mb-3"></i>
+                                Failed to load cash flow data
+                                <br>
+                                <small>${error.message}</small>
                             </td>
                         </tr>
                     `;
-                    return;
-                }
+                });
+        }
 
-                cashflows.forEach(cashflow => {
-                    const row = document.createElement('tr');
-                    row.setAttribute('data-id', cashflow.id);
-                    row.innerHTML = `
-                        <td>${cashflow.account_code || 'N/A'}</td>
-                        <td>${cashflow.account_name || 'N/A'}</td>
-                        <td>${getAccountTypeBadge(cashflow.account_type)}</td>
-                        <td>${getCategoryBadge(cashflow.cashflow_category)}</td>
-                        <td class="text-end">${formatNumber(cashflow.actual_amount)}</td>
-                        <td class="text-end">${formatNumber(cashflow.projection_percentage)}%</td>
-                        <td class="text-end">${formatNumber(cashflow.projected_amount)}</td>
-                        <td class="text-end">${formatNumber(cashflow.total)}</td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="${cashflow.id}">
+                // Display cash flows
+        function displayCashflows(cashflows) {
+            const tbody = document.querySelector('#table-cashflow tbody');
+
+            if (!cashflows || cashflows.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            No cash flow data found for the selected period
+                            <br>
+                            <small>Try selecting a different period or upload cash flow files</small>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = cashflows.map(cashflow => `
+                <tr data-id="${cashflow.id}">
+                    <td>${cashflow.gl_account?.account_code || 'N/A'}</td>
+                    <td>${cashflow.gl_account?.account_name || 'N/A'}</td>
+                    <td>
+                        ${getAccountTypeBadge(cashflow.gl_account?.account_type || 'single')}
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-medium text-primary">
+                            ${cashflow.actual_amount ? parseFloat(cashflow.actual_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <span class="fw-bold text-dark">
+                            ${cashflow.total ? parseFloat(cashflow.total).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
+                        </span>
+                    </td>
+                    <td>${cashflow.period || 'N/A'}</td>
+                    <td class="text-end">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="${cashflow.id}" title="View Details">
                                 <i class="bi bi-eye"></i>
                             </button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
+                            <button type="button" class="btn btn-sm btn-outline-warning btn-edit" data-id="${cashflow.id}" title="Edit Entry">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="${cashflow.id}" title="Delete Entry">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
 
-                // Re-attach event listeners
-                attachEventListeners();
-            }
+        // Get account type badge
+        function getAccountTypeBadge(accountType) {
+            const badges = {
+                'parent': '<span class="badge bg-primary">Parent</span>',
+                'child': '<span class="badge bg-success">Child</span>',
+                'single': '<span class="badge bg-info">Single</span>'
+            };
+            return badges[accountType] || '<span class="badge bg-secondary">' + (accountType || 'N/A') + '</span>';
+        }
 
-            function attachEventListeners() {
-                // View buttons
-                document.querySelectorAll('.btn-view').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const id = this.getAttribute('data-id');
-                        loadCashflowForView(id);
-                        viewModal.show();
-                    });
-                });
-            }
 
-            function loadCashflowForView(id) {
-                fetch(`{{ route('branch.cashflows.index') }}/${id}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const cashflow = data.data;
-                            document.getElementById('view_account_code').textContent = cashflow.account_code || 'N/A';
-                            document.getElementById('view_account_name').textContent = cashflow.account_name || 'N/A';
-                            document.getElementById('view_account_type').textContent = cashflow.account_type || 'N/A';
-                            document.getElementById('view_cashflow_category').textContent = cashflow.cashflow_category || 'N/A';
-                            document.getElementById('view_branch').textContent = cashflow.branch?.name || 'N/A';
-                            document.getElementById('view_period').textContent = `${cashflow.month} ${cashflow.year}`;
-                            document.getElementById('view_actual_amount').textContent = `₱ ${formatNumber(cashflow.actual_amount)}`;
-                            document.getElementById('view_projection_percentage').textContent = `${formatNumber(cashflow.projection_percentage)}%`;
-                            document.getElementById('view_projected_amount').textContent = `₱ ${formatNumber(cashflow.projected_amount)}`;
-                            document.getElementById('view_total').textContent = `₱ ${formatNumber(cashflow.total)}`;
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading cashflow:', error);
-                        showAlert('Error loading cashflow data', 'error');
-                    });
-            }
 
-            function updateSummary() {
-                const monthInput = document.getElementById('reporting_period');
-
-                const [year, month] = monthInput.value.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
-
-                const params = new URLSearchParams({
-                    year: year,
-                    month: monthNames[parseInt(month) - 1]
-                });
-
-                fetch(`{{ route('branch.cashflows.summary') }}?${params}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const summary = data.data;
-                            document.getElementById('totalOperating').textContent = formatNumber(summary.total_operating);
-                            document.getElementById('totalInvesting').textContent = formatNumber(summary.total_investing);
-                            document.getElementById('totalFinancing').textContent = formatNumber(summary.total_financing);
-                            document.getElementById('netCashflow').textContent = formatNumber(summary.net_cashflow);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading summary:', error);
-                    });
-            }
-
-            function exportCashflows() {
-                const monthInput = document.getElementById('reporting_period');
-
-                const [year, month] = monthInput.value.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
-
-                const params = new URLSearchParams({
-                    year: year,
-                    month: monthNames[parseInt(month) - 1]
-                });
-
-                fetch(`{{ route('branch.cashflows.export') }}?${params}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // In a real app, you might download a file
-                            // For now, we'll show the data
-                            console.log('Export data:', data.data);
-                            showAlert('Export data prepared successfully', 'success');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error exporting cashflows:', error);
-                        showAlert('Error exporting cashflows', 'error');
-                    });
-            }
-
-            function getAccountTypeBadge(type) {
-                const badges = {
-                    'Asset': '<span class="badge bg-primary">Asset</span>',
-                    'Liability': '<span class="badge bg-danger">Liability</span>',
-                    'Equity': '<span class="badge bg-success">Equity</span>',
-                    'Income': '<span class="badge bg-info">Income</span>',
-                    'Expense': '<span class="badge bg-warning text-dark">Expense</span>'
-                };
-                return badges[type] || `<span class="badge bg-secondary">${type}</span>`;
-            }
-
-            function getCategoryBadge(category) {
-                const badges = {
-                    'Operating': '<span class="badge bg-info text-dark">Operating</span>',
-                    'Investing': '<span class="badge bg-warning text-dark">Investing</span>',
-                    'Financing': '<span class="badge bg-success">Financing</span>'
-                };
-                return badges[category] || `<span class="badge bg-secondary">${category}</span>`;
-            }
-
-            function formatNumber(number) {
-                return parseFloat(number || 0).toLocaleString('en-US', {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                });
-            }
-
-            function showAlert(message, type = 'info') {
-                // Simple alert for now
-                alert(message);
+        // View cash flow details
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-view')) {
+                const cashflowId = e.target.closest('.btn-view').getAttribute('data-id');
+                loadCashflowDetails(cashflowId);
             }
         });
+
+        function loadCashflowDetails(cashflowId) {
+            fetch(`/branch/cashflows/${cashflowId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const cashflow = data.cashflow;
+                        document.getElementById('cashflowDetails').innerHTML = `
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Account Code:</strong> ${cashflow.gl_account?.account_code || 'N/A'}</p>
+                                    <p><strong>Account Name:</strong> ${cashflow.gl_account?.account_name || 'N/A'}</p>
+                                    <p><strong>Account Type:</strong> ${getAccountTypeBadge(cashflow.gl_account?.account_type || 'single')}</p>
+                                    <p><strong>Period:</strong> ${cashflow.period || 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Actual Amount:</strong> <span class="fw-medium text-primary">${cashflow.actual_amount ? parseFloat(cashflow.actual_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}</span></p>
+                                    <p><strong>Total:</strong> <span class="fw-bold text-dark">${cashflow.total ? parseFloat(cashflow.total).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}</span></p>
+                                    <p><strong>Year:</strong> ${cashflow.year || 'N/A'}</p>
+                                    <p><strong>Month:</strong> ${cashflow.month || 'N/A'}</p>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Created:</strong> ${cashflow.created_at ? new Date(cashflow.created_at).toLocaleDateString() : 'N/A'}</p>
+                                    <p><strong>Updated:</strong> ${cashflow.updated_at ? new Date(cashflow.updated_at).toLocaleDateString() : 'N/A'}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>File Source:</strong> ${cashflow.cashflow_file?.original_name || 'N/A'}</p>
+                                    <p><strong>Branch:</strong> ${cashflow.branch?.name || 'N/A'}</p>
+                                </div>
+                            </div>
+                        `;
+
+                        const modal = new bootstrap.Modal(document.getElementById('viewModal'));
+                        modal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to load cash flow details');
+                });
+        }
+
+        // Edit cash flow entry
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-edit')) {
+                const cashflowId = e.target.closest('.btn-edit').getAttribute('data-id');
+                loadCashflowForEdit(cashflowId);
+            }
+        });
+
+        function loadCashflowForEdit(cashflowId) {
+            fetch(`/branch/cashflows/${cashflowId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const cashflow = data.cashflow;
+
+                        // Populate form fields
+                        document.getElementById('edit_account_code').value = cashflow.gl_account?.account_code || '';
+                        document.getElementById('edit_account_name').value = cashflow.gl_account?.account_name || '';
+                        document.getElementById('edit_actual_amount').value = cashflow.actual_amount || '';
+                        document.getElementById('edit_total').value = cashflow.total || '';
+
+                        // Set form action
+                        document.getElementById('editForm').setAttribute('data-id', cashflowId);
+
+                        // Show modal
+                        const modal = new bootstrap.Modal(document.getElementById('editModal'));
+                        modal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to load cash flow data for editing');
+                });
+        }
+
+        // Update cash flow entry
+        document.getElementById('editForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const cashflowId = this.getAttribute('data-id');
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Updating...';
+
+            fetch(`/branch/cashflows/${cashflowId}`, {
+                method: 'PUT',
+                headers: {
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(Object.fromEntries(formData))
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+                    modal.hide();
+
+                    // Show success message
+                    alert('Cash flow entry updated successfully!');
+
+                    // Reload data
+                    loadCashflows();
+                } else {
+                    throw new Error(data.message || 'Update failed');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Failed to update cash flow entry: ' + error.message);
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+
+        // Delete cash flow entry
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.btn-delete')) {
+                const cashflowId = e.target.closest('.btn-delete').getAttribute('data-id');
+                deleteCashflow(cashflowId);
+            }
+        });
+
+        function deleteCashflow(cashflowId) {
+            if (confirm('Are you sure you want to delete this cash flow entry? This action cannot be undone.')) {
+                fetch(`/branch/cashflows/${cashflowId}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Cash flow entry deleted successfully!');
+                        loadCashflows();
+                    } else {
+                        throw new Error(data.message || 'Delete failed');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Failed to delete cash flow entry: ' + error.message);
+                });
+            }
+        }
+
+        // Export cash flows
+        function exportCashflows() {
+            const period = document.getElementById('reporting_period').value;
+            const [year, month] = period.split('-');
+
+            // Create download link
+            const link = document.createElement('a');
+            link.href = `/branch/cashflows/export?year=${year}&month=${month}`;
+            link.download = `cashflow_${month}_${year}.xlsx`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
     </script>
 </body>
-
 </html>
 
