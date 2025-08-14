@@ -95,15 +95,45 @@ class FileController extends Controller
                 'month' => $request->month,
                 'branch_id' => $request->branch_id,
                 'uploaded_by' => Auth::user()->name,
-                'status' => 'pending',
+                'status' => 'processing',
                 'description' => $request->description ?? "Cashflow file for {$request->month} {$request->year}",
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'File uploaded successfully',
-                'data' => $cashflowFile->load('branch')
-            ]);
+            // Auto-process the file after upload
+            try {
+                // Update status to processing
+                $cashflowFile->update(['status' => 'processing']);
+
+                // Get file path
+                $filePath = Storage::disk('public')->path($filePath);
+
+                // Import Excel data for the specific branch
+                Excel::import(
+                    new CashflowImport($cashflowFile, $cashflowFile->branch_id, $cashflowFile->year, $cashflowFile->month),
+                    $filePath
+                );
+
+                // Update status to processed
+                $cashflowFile->update(['status' => 'processed']);
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'File uploaded and processed successfully. Cashflow data has been imported.',
+                    'data' => $cashflowFile->load(['branch', 'cashflows'])
+                ]);
+
+            } catch (\Exception $e) {
+                // Update status to error
+                $cashflowFile->update([
+                    'status' => 'error',
+                    'description' => 'Auto-processing failed: ' . $e->getMessage()
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'File uploaded but processing failed: ' . $e->getMessage()
+                ], 500);
+            }
 
         } catch (\Exception $e) {
             return response()->json([

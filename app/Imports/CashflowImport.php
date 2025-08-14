@@ -28,11 +28,11 @@ class CashflowImport implements ToCollection, WithStartRow
     }
 
     /**
-     * Start reading from row 3 (after the header rows)
+     * Start reading from row 1 (data starts immediately)
      */
     public function startRow(): int
     {
-        return 3;
+        return 1;
     }
 
     /**
@@ -96,18 +96,55 @@ class CashflowImport implements ToCollection, WithStartRow
                 continue;
             }
 
-            // Process GL account entries (must have account name and actual amount)
+            // Process GL account entries
             Log::info("Checking row: Code='{$accountCode}', Name='{$accountName}', Amount='{$actualAmount}', IsNumeric=" . ($this->isNumeric($actualAmount) ? 'true' : 'false'));
 
-            if (!empty($accountName) && !empty($actualAmount) && $this->isNumeric($actualAmount)) {
+            // Skip empty rows
+            if (empty($accountName)) {
+                continue;
+            }
+
+            // Determine account type based on structure
+            $accountType = $this->determineAccountType($rows, $index);
+            Log::info("Account type determined: '{$accountType}' for '{$accountName}'");
+            Log::info("Row index: {$index}, Account name: '{$accountName}', Ends with colon: " . (substr(trim($accountName), -1) === ':' ? 'true' : 'false'));
+
+            // Handle child accounts (those starting with >)
+            if (str_starts_with(trim($accountName), '>')) {
+                Log::info("Processing child account: Code='{$accountCode}', Name='{$accountName}'");
+
+                // Find or create GL account (this will handle hierarchical structure)
+                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, 'child');
+
+                Log::info("Child GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
+
+                // Don't add child accounts to products array - they're just headers
+                continue;
+            }
+
+            // Handle parent accounts (those that have children below them)
+            if ($accountType === 'parent') {
+                Log::info("Processing parent account: Code='{$accountCode}', Name='{$accountName}'");
+
+                // Find or create GL account (this will handle hierarchical structure)
+                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, 'parent');
+
+                Log::info("Parent GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
+
+                // Don't add parent accounts to products array - they're just headers
+                continue;
+            }
+
+            // Process single accounts (must have account name and actual amount)
+            if (!empty($actualAmount) && $this->isNumeric($actualAmount)) {
                 $amount = $this->extractNumericValue($actualAmount);
 
-                Log::info("Processing account: Code='{$accountCode}', Name='{$accountName}', Amount='{$amount}'");
+                Log::info("Processing single account: Code='{$accountCode}', Name='{$accountName}', Amount='{$amount}'");
 
-                // Find or create GL account using account code and name
-                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName);
+                            // Find or create GL account using account code and name
+            $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, $accountType);
 
-                Log::info("GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
+                Log::info("Single GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
 
                 $cashflowData['products'][] = [
                     'gl_account_id' => $glAccount->id,
@@ -123,6 +160,9 @@ class CashflowImport implements ToCollection, WithStartRow
         // Log the collected data before storing
         Log::info("Collected cashflow data: " . json_encode($cashflowData));
 
+        // Update parent-child relationships
+        $this->updateParentChildRelationships($rows);
+
         // Store the processed data for the specific branch
         $this->storeCashflowData($cashflowData, $cooperativeName, $reportTitle);
     }
@@ -130,11 +170,11 @@ class CashflowImport implements ToCollection, WithStartRow
     /**
      * Find existing GL account by code/name or create new one with hierarchical support
      */
-    private function findOrCreateGLAccount($accountCode, $accountName)
+    private function findOrCreateGLAccount($accountCode, $accountName, $accountType = null)
     {
-        // Handle hierarchical accounts (e.g., "Loan Collection > Principal")
-        if (str_contains($accountName, '>')) {
-            return $this->handleHierarchicalAccount($accountCode, $accountName);
+        // Handle child accounts (those starting with >)
+        if (str_starts_with(trim($accountName), '>')) {
+            return $this->handleChildAccount($accountCode, $accountName);
         }
 
         // First try to find by account code (exact match)
@@ -174,14 +214,76 @@ class CashflowImport implements ToCollection, WithStartRow
 
         // Create new GL account if not found
         $finalAccountCode = !empty($accountCode) ? $accountCode : $this->generateAccountCode();
+
+        // Use the passed account type, or determine based on name if not provided
+        if ($accountType === null) {
+            $accountType = 'single';
+            $level = 0;
+
+            if (str_starts_with(trim($accountName), '>')) {
+                $accountType = 'child';
+                $level = 1;
+            }
+        } else {
+            // Set level based on account type
+            $level = ($accountType === 'child') ? 1 : 0;
+        }
+
+        Log::info("Creating GL account: '{$accountName}' with type: '{$accountType}', level: {$level}");
+
         $glAccount = GLAccount::create([
             'account_code' => $finalAccountCode,
             'account_name' => $accountName,
-            'account_type' => 'detail',
-            'level' => 0,
+            'account_type' => $accountType,
+            'level' => $level,
         ]);
 
         return $glAccount;
+    }
+
+    /**
+     * Handle child account creation (e.g., "> Principal")
+     */
+    private function handleChildAccount($accountCode, $accountName)
+    {
+        Log::info("Processing child account: '{$accountName}'");
+
+        // Clean child name (remove > and spaces)
+        $childName = trim(str_replace('>', '', $accountName));
+
+        if (empty($childName)) {
+            Log::info("Child name is empty after cleaning, skipping");
+            return null;
+        }
+
+        Log::info("Cleaned child name: '{$childName}'");
+
+        // Try to find existing child account
+        $childAccount = GLAccount::where('account_name', $childName)
+            ->where('account_type', 'child')
+            ->first();
+
+        if ($childAccount) {
+            Log::info("Found existing child account: ID={$childAccount->id}, Name='{$childAccount->account_name}'");
+            return $childAccount;
+        }
+
+        // Create new child account (parent_id will be set later when we find the parent)
+        $childCode = $this->generateAccountCode();
+
+        Log::info("Creating new child account: '{$childName}' with code: '{$childCode}'");
+
+        $childAccount = GLAccount::create([
+            'account_code' => $childCode,
+            'account_name' => $childName,
+            'account_type' => 'child',
+            'level' => 1,
+            'parent_id' => null, // Will be updated when parent is found
+        ]);
+
+        Log::info("Created child account: ID={$childAccount->id}, Name='{$childAccount->account_name}'");
+
+        return $childAccount;
     }
 
     /**
@@ -197,7 +299,7 @@ class CashflowImport implements ToCollection, WithStartRow
         if (count($parts) < 2) {
             // Not a valid hierarchical structure, treat as regular account
             Log::info("Not enough parts for hierarchical structure, treating as regular account");
-            return $this->findOrCreateGLAccount($accountCode, $accountName);
+            return $this->findOrCreateGLAccount($accountCode, $accountName, 'single');
         }
 
                 // Clean parent name: remove colon and extra spaces
@@ -226,6 +328,63 @@ class CashflowImport implements ToCollection, WithStartRow
         Log::info("Child account result: ID={$childAccount->id}, Name='{$childAccount->account_name}', Parent_ID={$childAccount->parent_id}");
 
         return $childAccount;
+    }
+
+        /**
+     * Update parent-child relationships after processing all accounts
+     */
+    private function updateParentChildRelationships($rows)
+    {
+        Log::info("Updating parent-child relationships");
+
+        $currentParent = null;
+
+        foreach ($rows as $index => $row) {
+            $accountName = trim($row[1] ?? ''); // Column B
+
+            if (empty($accountName)) {
+                continue;
+            }
+
+            Log::info("Processing row {$index}: '{$accountName}'");
+
+            // If this is a parent account (has children below or ends with colon)
+            if ($this->determineAccountType($rows, $index) === 'parent') {
+                $currentParent = GLAccount::where('account_name', $accountName)
+                    ->where('account_type', 'parent')
+                    ->first();
+
+                if ($currentParent) {
+                    Log::info("Found parent account: '{$accountName}' with ID: {$currentParent->id}");
+                } else {
+                    Log::warning("Parent account '{$accountName}' not found in database");
+                }
+            }
+
+            // If this is a child account (starts with >)
+            if (str_starts_with($accountName, '>')) {
+                $childName = trim(str_replace('>', '', $accountName));
+                Log::info("Processing child account: '{$childName}'");
+
+                if ($currentParent) {
+                    // Update child account with parent_id
+                    $childAccount = GLAccount::where('account_name', $childName)
+                        ->where('account_type', 'child')
+                        ->first();
+
+                    if ($childAccount) {
+                        $childAccount->update(['parent_id' => $currentParent->id]);
+                        Log::info("Updated child account '{$childName}' with parent_id: {$currentParent->id}");
+                    } else {
+                        Log::warning("Child account '{$childName}' not found in database");
+                    }
+                } else {
+                    Log::warning("Child account '{$childName}' has no parent assigned");
+                }
+            }
+        }
+
+        Log::info("Parent-child relationships updated");
     }
 
     /**
@@ -365,14 +524,14 @@ class CashflowImport implements ToCollection, WithStartRow
         // Create new child account
         $childCode = $this->generateAccountCode();
 
-        Log::info("Creating child account with data: account_code='{$childCode}', account_name='{$childName}', parent_id='{$parentId}', account_type='detail', level=1");
+        Log::info("Creating child account with data: account_code='{$childCode}', account_name='{$childName}', parent_id='{$parentId}', account_type='child', level=1");
 
         try {
             $childAccount = GLAccount::create([
                 'account_code' => $childCode,
                 'account_name' => $childName,
                 'parent_id' => $parentId,
-                'account_type' => 'detail',
+                'account_type' => 'child',
                 'level' => 1,
             ]);
             Log::info("GLAccount::create() for child completed successfully");
@@ -431,6 +590,88 @@ class CashflowImport implements ToCollection, WithStartRow
         $cleanValue = preg_replace('/[^\d.-]/', '', $value);
 
         return is_numeric($cleanValue) ? (float) $cleanValue : 0;
+    }
+
+                    /**
+     * Determine account type based on structure
+     */
+    private function determineAccountType($rows, $currentIndex)
+    {
+        $currentRow = $rows[$currentIndex];
+        $currentAccountName = trim($currentRow[1] ?? ''); // Column B
+
+        // If current row starts with >, it's a child
+        if (str_starts_with($currentAccountName, '>')) {
+            return 'child';
+        }
+
+        // Direct check: If account name ends with colon, it's likely a parent
+        if (substr(trim($currentAccountName), -1) === ':') {
+            Log::info("Account '{$currentAccountName}' ends with colon, checking for children below...");
+
+            // Look ahead to confirm it has children
+            for ($i = $currentIndex + 1; $i < count($rows); $i++) {
+                $nextRow = $rows[$i];
+                $nextAccountName = trim($nextRow[1] ?? ''); // Column B
+
+                Log::info("Checking row {$i}: '{$nextAccountName}'");
+
+                // Skip empty rows
+                if (empty($nextAccountName)) {
+                    Log::info("Row {$i} is empty, continuing...");
+                    continue;
+                }
+
+                // If we find a child account (starts with >), then current is a parent
+                if (str_starts_with($nextAccountName, '>')) {
+                    Log::info("Found child account '{$nextAccountName}', so '{$currentAccountName}' is a parent");
+                    return 'parent';
+                }
+
+                // If we find another main account (no >), then current is not a parent
+                if (!str_starts_with($nextAccountName, '>')) {
+                    Log::info("Found main account '{$nextAccountName}', so '{$currentAccountName}' is not a parent");
+                    break;
+                }
+            }
+
+            // Even if no children found, colon indicates it's a parent (for future use)
+            Log::info("No children found for '{$currentAccountName}', but colon indicates it's a parent");
+            return 'parent';
+        }
+
+        // Look ahead to see if this account has children below (with >)
+        Log::info("Checking if '{$currentAccountName}' has children below...");
+        Log::info("Current row index: {$currentIndex}, Total rows: " . count($rows));
+
+        for ($i = $currentIndex + 1; $i < count($rows); $i++) {
+            $nextRow = $rows[$i];
+            $nextAccountName = trim($nextRow[1] ?? ''); // Column B
+
+            Log::info("Checking row {$i}: '{$nextAccountName}'");
+
+            // Skip empty rows
+            if (empty($nextAccountName)) {
+                Log::info("Row {$i} is empty, continuing...");
+                continue;
+            }
+
+            // If we find a child account (starts with >), then current is a parent
+            if (str_starts_with($nextAccountName, '>')) {
+                Log::info("Found child account '{$nextAccountName}', so '{$currentAccountName}' is a parent");
+                return 'parent';
+            }
+
+            // If we find another main account (no >), then current is not a parent
+            if (!str_starts_with($nextAccountName, '>')) {
+                Log::info("Found main account '{$nextAccountName}', so '{$currentAccountName}' is not a parent");
+                break;
+            }
+        }
+
+        // If no children found, it's a single account
+        Log::info("No children found for '{$currentAccountName}', so it's a single account");
+        return 'single';
     }
 
     /**

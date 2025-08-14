@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('account_code')->unique(); // Unique account code
             $table->string('account_name'); // Account name
             $table->foreignId('parent_id')->nullable()->constrained('gl_accounts')->onDelete('cascade'); // Parent account for hierarchical structure
-            $table->string('account_type')->default('detail'); // 'parent' or 'detail'
+            $table->string('account_type')->default('single'); // 'parent' or 'detail'
             $table->integer('level')->default(0); // Hierarchy level (0 = root, 1 = child, etc.)
             $table->boolean('is_active')->default(true); // Whether account is active
             $table->timestamps();

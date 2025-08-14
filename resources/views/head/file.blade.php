@@ -133,9 +133,7 @@
                                                             <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $file->id }}">
                                                                 <i class="bi bi-eye"></i>
                                                             </button>
-                                                            <button class="btn btn-sm btn-outline-success btn-process" title="Process File" data-id="{{ $file->id }}" {{ $file->status === 'processed' ? 'disabled' : '' }}>
-                                                                <i class="bi bi-play-circle"></i>
-                                                            </button>
+
                                                             <button class="btn btn-sm btn-outline-info btn-download" title="Download File" data-id="{{ $file->id }}">
                                                                 <i class="bi bi-download"></i>
                                                             </button>
@@ -230,6 +228,7 @@
                                         <li><strong>Column B:</strong> Product names and header values</li>
                                         <li><strong>Column C:</strong> Product amounts</li>
                                         <li><strong>Key Headers:</strong> CASH BEGINNING BALANCE, TOTAL CASH AVAILABLE, TOTAL DISBURSEMENTS, CASH ENDING BALANCE</li>
+                                        <li><strong>Note:</strong> File will be automatically processed after upload - no need to click "Process" button</li>
                                     </ul>
                                 </div>
                             </div>
@@ -355,16 +354,7 @@
                 });
             });
 
-            // Process button
-            document.querySelectorAll('.btn-process').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
-                    const fileName = this.closest('tr').querySelector('td:nth-child(2)').textContent;
-                    if (confirm(`Are you sure you want to process "${fileName}"? This will import the cashflow data into the system.`)) {
-                        processFile(id);
-                    }
-                });
-            });
+
 
             // Download button
             document.querySelectorAll('.btn-download').forEach(btn => {
@@ -554,8 +544,8 @@
 
                 // Show loading with SweetAlert2
                 Swal.fire({
-                    title: 'Uploading File...',
-                    text: 'Please wait while we upload your Excel file',
+                    title: 'Uploading & Processing File...',
+                    text: 'Please wait while we upload your Excel file and automatically process the cashflow data',
                     allowOutsideClick: false,
                     allowEscapeKey: false,
                     showConfirmButton: false,
@@ -593,7 +583,7 @@
                         // Show success message
                         Swal.fire({
                             icon: 'success',
-                            title: 'File Uploaded Successfully!',
+                            title: 'File Uploaded & Processed Successfully!',
                             text: data.message,
                             confirmButtonText: 'OK'
                         });
@@ -659,67 +649,7 @@
                     });
             }
 
-            function processFile(id) {
-                // Show loading with SweetAlert2
-                Swal.fire({
-                    title: 'Processing File...',
-                    text: 'Please wait while we process your Excel file and import data for all branches',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    showConfirmButton: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
 
-                fetch(`/head/files/${id}/process`, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Close loading
-                    Swal.close();
-
-                    if (data.success) {
-                        // Show success message
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'File Processed Successfully!',
-                            text: data.message,
-                            confirmButtonText: 'OK'
-                        });
-
-                        // Reload page to show updated status
-                        setTimeout(() => {
-                            location.reload();
-                        }, 1500);
-                    } else {
-                        // Show error message
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Processing Failed',
-                            text: data.message || 'An error occurred while processing the file',
-                            confirmButtonText: 'OK'
-                        });
-                    }
-                })
-                .catch(error => {
-                    // Close loading
-                    Swal.close();
-
-                    console.error('Error processing file:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Processing Failed',
-                        text: 'Network error occurred. Please try again.',
-                        confirmButtonText: 'OK'
-                    });
-                });
-            }
 
             function downloadFile(id) {
                 fetch(`/head/files/${id}/download`)
