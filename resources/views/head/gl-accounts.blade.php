@@ -63,6 +63,8 @@
                                             <tr>
                                                 <th>Account Code</th>
                                                 <th>Account Name</th>
+                                                <th>Type</th>
+                                                <th>Level</th>
                                                 <th>Cash Flow Entries</th>
                                                 <th>Created Date</th>
                                                 <th class="text-end">Actions</th>
@@ -70,15 +72,36 @@
                                         </thead>
                                         <tbody>
                                             @forelse($glAccounts ?? [] as $account)
-                                                <tr data-id="{{ $account->id }}">
+                                                <tr data-id="{{ $account->id }}" class="{{ $account->parent_id ? 'table-secondary' : '' }}">
                                                     <td>
                                                         <span class="fw-medium text-primary">{{ $account->account_code }}</span>
+                                                    @if($account->parent_id)
+                                                        <i class="bi bi-arrow-right text-muted ms-1"></i>
+                                                    @endif
                                                     </td>
-                                                    <td>{{ $account->account_name }}</td>
+                                                    <td>
+                                                        @if($account->parent_id)
+                                                            <span class="text-muted ms-3">{{ $account->account_name }}</span>
+                                                        @else
+                                                            <strong>{{ $account->account_name }}</strong>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($account->account_type === 'parent')
+                                                            <span class="badge bg-primary">Parent</span>
+                                                        @elseif($account->account_type === 'summary')
+                                                            <span class="badge bg-warning">Summary</span>
+                                                        @else
+                                                            <span class="badge bg-secondary">Detail</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-light text-dark">Level {{ $account->level }}</span>
+                                                    </td>
                                                     <td>
                                                         <span class="badge bg-info">{{ $account->cashflows_count ?? 0 }} entries</span>
                                                     </td>
-                                                    <td>{{ $account->created_at->format('M d, Y') }}</td>
+                                                    <td>{{ $account->created_at ? $account->created_at->format('M d, Y') : 'N/A' }}</td>
                                                     <td class="text-end">
                                                         <div class="btn-group" role="group">
                                                             <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="{{ $account->id }}" title="View Details">

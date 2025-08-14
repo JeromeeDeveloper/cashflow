@@ -81,7 +81,7 @@
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            @forelse($cashflows as $cashflow)
+                                            @forelse($cashflows ?? [] as $cashflow)
                                                 <tr data-id="{{ $cashflow->id }}">
                                                     <td>{{ $cashflow->glAccount->account_code ?? 'N/A' }}</td>
                                                     <td>{{ $cashflow->glAccount->account_name ?? $cashflow->account_name ?? 'N/A' }}</td>
@@ -122,10 +122,10 @@
                                                         @endswitch
                                                     </td>
                                                     <td>{{ $cashflow->branch->name ?? 'N/A' }}</td>
-                                                    <td class="text-end">{{ number_format($cashflow->actual_amount, 2) }}</td>
-                                                    <td class="text-end">{{ number_format($cashflow->projection_percentage, 2) }}%</td>
-                                                    <td class="text-end">{{ number_format($cashflow->projected_amount, 2) }}</td>
-                                                    <td class="text-end">{{ number_format($cashflow->total, 2) }}</td>
+                                                                                                    <td class="text-end">{{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}</td>
+                                                <td class="text-end">{{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) : '0.00' }}%</td>
+                                                <td class="text-end">{{ $cashflow->projected_amount ? number_format($cashflow->projected_amount, 2) : '0.00' }}</td>
+                                                <td class="text-end">{{ $cashflow->total ? number_format($cashflow->total, 2) : '0.00' }}</td>
                                                     <td class="text-end">
                                                         <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $cashflow->id }}"><i class="bi bi-eye"></i></button>
                                                         <button class="btn btn-sm btn-outline-secondary btn-edit" title="Edit" data-id="{{ $cashflow->id }}"><i class="bi bi-pencil"></i></button>
@@ -380,9 +380,9 @@
             // Current editing ID
             let currentEditId = null;
 
-            // Load initial data and calculate totals
-            loadCashflows();
-            updateSummary();
+            // Don't auto-load via AJAX - use initial data from controller
+            // loadCashflows();
+            // updateSummary();
 
             // Add button
             document.getElementById('btnAdd').addEventListener('click', function() {

@@ -122,10 +122,10 @@
                                                                 <span class="badge bg-secondary">{{ $cashflow->cashflow_category }}</span>
                                                         @endswitch
                                                     </td>
-                                                    <td class="text-end">{{ number_format($cashflow->actual_amount, 2) }}</td>
-                                                    <td class="text-end">{{ number_format($cashflow->projection_percentage, 2) }}%</td>
-                                                    <td class="text-end">{{ number_format($cashflow->projected_amount, 2) }}</td>
-                                                    <td class="text-end">{{ number_format($cashflow->total, 2) }}</td>
+                                                                                                    <td class="text-end">{{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}</td>
+                                                <td class="text-end">{{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) : '0.00' }}%</td>
+                                                <td class="text-end">{{ $cashflow->projected_amount ? number_format($cashflow->projected_amount, 2) : '0.00' }}</td>
+                                                <td class="text-end">{{ $cashflow->total ? number_format($cashflow->total, 2) : '0.00' }}</td>
                                                     <td class="text-end">
                                                         <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $cashflow->id }}">
                                                             <i class="bi bi-eye"></i>

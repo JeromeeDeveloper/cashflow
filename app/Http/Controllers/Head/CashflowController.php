@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Head;
 use App\Http\Controllers\Controller;
 use App\Models\Cashflow;
 use App\Models\Branch;
+use App\Exports\CashflowExport;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CashflowController extends Controller
 {
@@ -42,7 +44,7 @@ class CashflowController extends Controller
         }
 
         // Filter by branch
-        if ($request->filled('branch_id') && $request->branch_id !== '') {
+        if ($request->branch_id && $request->branch_id !== '') {
             $query->where('branch_id', $request->branch_id);
         }
 
@@ -229,29 +231,18 @@ class CashflowController extends Controller
     /**
      * Export cashflow data.
      */
-    public function export(Request $request): JsonResponse
+    public function export(Request $request)
     {
-        $query = Cashflow::with(['branch', 'cashflowFile']);
+        $year = $request->integer('year');
+        $month = $request->get('month');
+        $branchId = $request->filled('branch_id') ? (int) $request->branch_id : null;
 
-        // Apply filters
-        if ($request->filled('year')) {
-            $query->where('year', $request->year);
-        }
-        if ($request->filled('month')) {
-            $query->where('month', $request->month);
-        }
-        if ($request->filled('branch_id') && $request->branch_id !== '') {
-            $query->where('branch_id', $request->branch_id);
-        }
+        $fileNameParts = ['cashflow'];
+        if ($branchId) { $fileNameParts[] = 'branch_'.$branchId; }
+        if ($month) { $fileNameParts[] = strtolower($month); }
+        if ($year) { $fileNameParts[] = (string) $year; }
+        $fileName = implode('_', $fileNameParts) . '.xlsx';
 
-        $cashflows = $query->orderBy('created_at', 'desc')->get();
-
-        // In a real application, you would generate and return an actual file
-        // For now, we'll return the data for frontend processing
-        return response()->json([
-            'success' => true,
-            'message' => 'Export data prepared successfully',
-            'data' => $cashflows
-        ]);
+        return Excel::download(new CashflowExport($year, $month, $branchId), $fileName);
     }
 }

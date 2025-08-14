@@ -21,12 +21,6 @@ return new class extends Migration
             $table->string('month', 20); // January, February, etc.
             $table->string('period')->nullable(); // Q1, Q2, etc. if needed
 
-            // Account information
-            $table->string('account_code')->nullable();
-            $table->string('account_name')->nullable();
-            $table->string('account_type')->nullable(); // Asset, Liability, Equity, Income, Expense
-            $table->string('cashflow_category')->nullable(); // Operating, Investing, Financing
-
             // Amount fields
             $table->decimal('actual_amount', 15, 2)->nullable();
             $table->decimal('projection_percentage', 8, 2)->nullable();
@@ -42,7 +36,6 @@ return new class extends Migration
             $table->decimal('less_disbursements', 15, 2)->nullable();
             $table->decimal('total_disbursements', 15, 2)->nullable();
             $table->decimal('cash_ending_balance', 15, 2)->nullable();
-            $table->decimal('grand_total', 15, 2)->nullable();
 
             $table->timestamps();
         });

@@ -127,7 +127,7 @@
                                                                 <span class="badge bg-secondary">{{ $file->status }}</span>
                                                         @endswitch
                                                     </td>
-                                                    <td>{{ $file->created_at->format('M d, Y H:i') }}</td>
+                                                    <td>{{ $file->created_at ? $file->created_at->format('M d, Y H:i') : 'N/A' }}</td>
                                                     <td>
                                                         <div class="btn-group" role="group">
                                                             <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $file->id }}">

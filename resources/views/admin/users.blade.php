@@ -215,7 +215,7 @@
                                                     </td>
                                                     <td>
                                                         <small class="text-muted">
-                                                            {{ $user->created_at->format('M d, Y') }}
+                                                            {{ $user->created_at ? $user->created_at->format('M d, Y') : 'N/A' }}
                                                         </small>
                                                     </td>
                                                     <td class="text-end">

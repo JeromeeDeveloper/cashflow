@@ -89,7 +89,7 @@
                                                     <td>
                                                         <span class="badge bg-{{ $file->status === 'processed' ? 'success' : 'secondary' }}">{{ ucfirst($file->status) }}</span>
                                                     </td>
-                                                    <td>{{ $file->created_at->format('M d, Y H:i') }}</td>
+                                                    <td>{{ $file->created_at ? $file->created_at->format('M d, Y H:i') : 'N/A' }}</td>
                                                     <td class="text-end">
                                                         <div class="btn-group" role="group">
                                                             <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="{{ $file->id }}" title="View Details"><i class="bi bi-eye"></i></button>

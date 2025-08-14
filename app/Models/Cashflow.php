@@ -17,8 +17,6 @@ class Cashflow extends Model
         'year',
         'month',
         'period',
-        'account_type',
-        'cashflow_category',
         'actual_amount',
         'projection_percentage',
         'projected_amount',
@@ -29,7 +27,6 @@ class Cashflow extends Model
         'less_disbursements',
         'total_disbursements',
         'cash_ending_balance',
-        'grand_total',
     ];
 
     protected $casts = [
@@ -44,7 +41,6 @@ class Cashflow extends Model
         'less_disbursements' => 'decimal:2',
         'total_disbursements' => 'decimal:2',
         'cash_ending_balance' => 'decimal:2',
-        'grand_total' => 'decimal:2',
     ];
 
     /**
