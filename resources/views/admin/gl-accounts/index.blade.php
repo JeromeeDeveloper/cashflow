@@ -36,17 +36,9 @@
             border-left: 4px solid #1976d2;
         }
 
-        .child-account {
-            background-color: #ffffff;
-            border-left: 2px solid #28a745;
-        }
 
-        .child-account::before {
-            content: "└─";
-            color: #28a745;
-            font-weight: bold;
-            margin-right: 8px;
-        }
+
+
 
         .account-indicator {
             display: inline-block;
@@ -58,8 +50,8 @@
 
         .indicator-parent { background-color: #007bff; }
         .indicator-child { background-color: #28a745; }
-        .indicator-detail { background-color: #ffc107; }
-        .indicator-summary { background-color: #17a2b8; }
+        .indicator-single { background-color: #ffc107; }
+
 
         /* Relationship status indicators */
         .relationship-status {
@@ -99,6 +91,110 @@
         .dropdown-item i {
             width: 16px;
             text-align: center;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .table-responsive {
+                font-size: 0.875rem;
+            }
+
+            .table th, .table td {
+                padding: 0.5rem 0.25rem;
+                vertical-align: middle;
+            }
+
+            .badge {
+                font-size: 0.75rem;
+                padding: 0.25rem 0.5rem;
+            }
+
+            .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+            }
+
+            .btn-group {
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+            }
+
+            .btn-group .btn {
+                margin-bottom: 0.25rem;
+            }
+        }
+
+        /* Fix table alignment for parent-child structure */
+        .table th, .table td {
+            vertical-align: middle;
+            padding: 0.75rem;
+        }
+
+        .child-account td:first-child {
+            padding-left: 2rem;
+        }
+
+        .child-account {
+            position: relative;
+        }
+
+        /* Simple, clean styling */
+        .card {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+        }
+
+        .table {
+            border: 1px solid #dee2e6;
+        }
+
+        .table thead th {
+            background-color: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+        }
+
+        .btn {
+            border-radius: 0.375rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 0.375rem;
+        }
+
+        /* Drag and Drop Styles */
+        .drag-handle {
+            cursor: grab;
+            user-select: none;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+
+        .selected-account-row {
+            transition: all 0.2s ease;
+        }
+
+        .selected-account-row.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .selected-account-row.drag-over {
+            border-top: 3px solid #007bff;
+            border-bottom: 3px solid #007bff;
+            background-color: #f8f9fa;
+        }
+
+        .cursor-grab {
+            cursor: grab;
+        }
+
+        .cursor-grab:active {
+            cursor: grabbing;
         }
     </style>
 </head>
@@ -244,241 +340,8 @@
                     </div>
                 </section>
 
-                <!-- Selected Accounts Table -->
-                <section class="row">
-                    <div class="col-12">
-                        <div class="card">
-                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
-                                <h4 class="mb-0">
-                                    <i class="bi bi-check-circle text-success me-2"></i>
-                                    Selected Accounts ({{ $selectedAccounts->count() }})
-                                </h4>
-                                <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
-                                    <button type="button" class="btn btn-warning" id="btnDeselectAll">
-                                        <i class="bi bi-x-circle me-2"></i>Deselect All
-                                    </button>
-                                    <span class="badge rounded-pill bg-success text-white d-flex align-items-center px-3">
-                                        <i class="bi bi-check-circle me-2"></i>
-                                        Available in Cashflow
-                                    </span>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="table-responsive">
-                                    <table class="table table-hover" id="table-selected-accounts">
-                                        <thead>
-                                            <tr>
-                                                <th>Account Code</th>
-                                                <th>Account Name</th>
-                                                <th>Account Type</th>
-                                                <th>Cashflow Type</th>
-                                                <th>Parent Account</th>
-                                                <th>Level</th>
-                                                <th>Status</th>
-                                                <th class="text-end">Actions</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse($selectedAccounts as $account)
-                                                <tr class="{{ $account->parent_id ? 'child-account' : 'parent-account' }}" data-id="{{ $account->id }}">
-                                                    <td>
-                                                        <span class="account-indicator indicator-{{ $account->account_type }}"></span>
-                                                        <span class="fw-medium text-primary">{{ $account->account_code }}</span>
-                                                    </td>
-                                                    <td>
-                                                        @if($account->parent_id)
-                                                            <div class="account-hierarchy">
-                                                                {{ $account->account_name }}
-                                                            </div>
-                                                        @else
-                                                            <strong>{{ $account->account_name }}</strong>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @switch($account->account_type)
-                                                            @case('parent')
-                                                                <span class="badge bg-primary">{{ $account->account_type }}</span>
-                                                                @break
-                                                            @case('detail')
-                                                                <span class="badge bg-success">{{ $account->account_type }}</span>
-                                                                @break
-                                                            @case('summary')
-                                                                <span class="badge bg-info">{{ $account->account_type }}</span>
-                                                                @break
-                                                            @default
-                                                                <span class="badge bg-secondary">{{ $account->account_type }}</span>
-                                                        @endswitch
-                                                    </td>
-                                                    <td>
-                                                        @php
-                                                            $cashflowType = $account->cashflow_type ?? 'disbursements';
-                                                            $actualType = $account->getMostCommonCashflowType();
-                                                            $displayType = $actualType ?: $cashflowType;
-                                                        @endphp
-                                                        @if($displayType === 'receipts')
-                                                            <span class="badge bg-success">Receipts</span>
-                                                        @else
-                                                            <span class="badge bg-danger">Disbursements</span>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if($account->parent)
-                                                            <span class="text-muted">{{ $account->parent->account_name }}</span>
-                                                        @else
-                                                            <span class="text-muted">-</span>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        <span class="badge bg-light text-dark">{{ $account->level }}</span>
-                                                        @if($account->parent || $account->children->count() > 0)
-                                                            <div class="mt-1">
-                                                                @if($account->children->count() > 0)
-                                                                    <span class="relationship-status has-children">
-                                                                        <i class="bi bi-arrow-down"></i>{{ $account->children->count() }} Children
-                                                                    </span>
-                                                                @elseif($account->parent)
-                                                                    <span class="relationship-status has-parent">
-                                                                        <i class="bi bi-arrow-up"></i>Child of {{ $account->parent->account_name }}
-                                                                    </span>
-                                                                @endif
-                                                            </div>
-                                                        @endif
-                                                    </td>
-                                                    <td>
-                                                        @if($account->is_active)
-                                                            <span class="badge bg-success">Active</span>
-                                                        @else
-                                                            <span class="badge bg-danger">Inactive</span>
-                                                        @endif
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <div class="form-check form-switch d-inline-block">
-                                                            <input class="form-check-input selection-toggle" type="checkbox"
-                                                                   data-id="{{ $account->id }}"
-                                                                   {{ $account->is_selected ? 'checked' : '' }}>
-                                                        </div>
-                                                        <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $account->id }}">
-                                                            <i class="bi bi-eye"></i>
-                                                        </button>
-                                                        <button class="btn btn-sm btn-outline-warning btn-edit" title="Edit Account" data-id="{{ $account->id }}">
-                                                            <i class="bi bi-pencil"></i>
-                                                        </button>
-                                                        <div class="btn-group" role="group">
-                                                            <button class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" title="Parent-Child Actions">
-                                                                <i class="bi bi-diagram-3"></i>
-                                                                <span class="ms-1">Relationships</span>
-                                                            </button>
-                                                            <ul class="dropdown-menu">
-                                                                <li><h6 class="dropdown-header">Make Parent</h6></li>
-                                                                <li><a class="dropdown-item make-parent-btn" href="#" data-id="{{ $account->id }}">
-                                                                    <i class="bi bi-plus-circle text-success me-2"></i>Make This Account a Parent
-                                                                </a></li>
-                                                                <li><hr class="dropdown-divider"></li>
-                                                                @if($account->parent)
-                                                                    <li><h6 class="dropdown-header">Current Parent</h6></li>
-                                                                    <li><a class="dropdown-item remove-parent-btn" href="#" data-id="{{ $account->id }}">
-                                                                        <i class="bi bi-dash-circle text-warning me-2"></i>Remove Parent ({{ $account->parent->account_name }})
-                                                                    </a></li>
-                                                                @endif
-                                                                @if($account->children->count() > 0)
-                                                                    <li><h6 class="dropdown-header">Current Children ({{ $account->children->count() }})</h6></li>
-                                                                    <li><a class="dropdown-item remove-children-btn" href="#" data-id="{{ $account->id }}">
-                                                                        <i class="bi bi-dash-circle text-warning me-2"></i>Remove All Children
-                                                                    </a></li>
-                                                                @endif
-                                                                @if($account->parent || $account->children->count() > 0)
-                                                                    <li><hr class="dropdown-divider"></li>
-                                                                    <li><a class="dropdown-item remove-all-relationships-btn" href="#" data-id="{{ $account->id }}">
-                                                                        <i class="bi bi-trash text-danger me-2"></i>Remove All Relationships
-                                                                    </a></li>
-                                                                @endif
-                                                            </ul>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                                @if($account->children->count() > 0)
-                                                    @foreach($account->children->where('is_selected', true) as $child)
-                                                        <tr class="child-account" data-id="{{ $child->id }}">
-                                                            <td>
-                                                                <span class="account-indicator indicator-{{ $child->account_type }}"></span>
-                                                                <span class="fw-medium text-primary">{{ $child->account_code }}</span>
-                                                            </td>
-                                                            <td>
-                                                                <div class="account-hierarchy">
-                                                                    {{ $child->account_name }}
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                @switch($child->account_type)
-                                                                    @case('parent')
-                                                                        <span class="badge bg-primary">{{ $child->account_type }}</span>
-                                                                        @break
-                                                                    @case('detail')
-                                                                        <span class="badge bg-success">{{ $child->account_type }}</span>
-                                                                        @break
-                                                                    @case('summary')
-                                                                        <span class="badge bg-info">{{ $child->account_type }}</span>
-                                                                        @break
-                                                                    @default
-                                                                        <span class="badge bg-secondary">{{ $child->account_type }}</span>
-                                                                @endswitch
-                                                            </td>
-                                                            <td>
-                                                                @php
-                                                                    $childCashflowType = $child->cashflow_type ?? 'disbursements';
-                                                                    $childActualType = $child->getMostCommonCashflowType();
-                                                                    $childDisplayType = $childActualType ?: $childCashflowType;
-                                                                @endphp
-                                                                @if($childDisplayType === 'receipts')
-                                                                    <span class="badge bg-success">Receipts</span>
-                                                                @else
-                                                                    <span class="badge bg-danger">Disbursements</span>
-                                                                @endif
-                                                            </td>
-                                                            <td>
-                                                                <span class="text-muted">{{ $account->account_name }}</span>
-                                                            </td>
-                                                            <td>
-                                                                <span class="badge bg-light text-dark">{{ $child->level }}</span>
-                                                            </td>
-                                                            <td>
-                                                                @if($child->is_active)
-                                                                    <span class="badge bg-success">Active</span>
-                                                                @else
-                                                                    <span class="badge bg-danger">Inactive</span>
-                                                                @endif
-                                                            </td>
-                                                            <td class="text-end">
-                                                                <div class="form-check form-switch d-inline-block">
-                                                                    <input class="form-check-input selection-toggle" type="checkbox"
-                                                                           data-id="{{ $child->id }}"
-                                                                           {{ $child->is_selected ? 'checked' : '' }}>
-                                                                </div>
-                                                                <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $child->id }}">
-                                                                    <i class="bi bi-eye"></i>
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    @endforeach
-                                                @endif
-                                            @empty
-                                                <tr>
-                                                    <td colspan="8" class="text-center text-muted py-4">
-                                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                                        No selected accounts found
-                                                    </td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- All GL Accounts Management -->
-                <section class="row">
+                   <!-- All GL Accounts Management -->
+                   <section class="row">
                     <div class="col-12">
                         <div class="card">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
@@ -494,8 +357,8 @@
                                     <select id="accountTypeFilter" class="form-select" style="max-width: 150px;">
                                         <option value="">All Types</option>
                                         <option value="parent">Parent</option>
-                                        <option value="detail">Detail</option>
-                                        <option value="summary">Summary</option>
+
+                                        <option value="child">Child</option>
                                     </select>
 
                                     <select id="cashflowTypeFilter" class="form-select" style="max-width: 150px;">
@@ -513,11 +376,9 @@
                                     <!-- Bulk Actions -->
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-success" id="btnSelectAll">
-                                            <i class="bi bi-check-all me-2"></i>Select All
+                                            <i class="bi bi-check-all me-2"></i>Select ALL GL Accounts
                                         </button>
-                                        <button type="button" class="btn btn-warning" id="btnUpdateCashflowTypes">
-                                            <i class="bi bi-arrow-repeat me-2"></i>Update Cashflow Types
-                                        </button>
+
                                     </div>
 
                                     <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center px-3" data-bs-toggle="tooltip" data-bs-placement="top" title="Selected accounts will be available in cashflow views">
@@ -531,18 +392,18 @@
                                     <table class="table table-hover" id="table-gl-accounts">
                                         <thead>
                                             <tr>
-                                                <th>
+                                                <th class="text-center">
                                                     <input type="checkbox" id="selectAllCheckbox" class="form-check-input">
                                                 </th>
-                                                <th>Account Code</th>
-                                                <th>Account Name</th>
-                                                <th>Account Type</th>
-                                                <th>Cashflow Type</th>
-                                                <th>Parent Account</th>
-                                                <th>Level</th>
-                                                <th>Status</th>
-                                                <th>Selection</th>
-                                                <th class="text-end">Actions</th>
+                                                <th class="text-center">Account Code</th>
+                                                <th class="text-center">Account Name</th>
+                                                <th class="text-center">Account Type</th>
+                                                <th class="text-center">Cashflow Type</th>
+                                                <th class="text-center">Parent Account</th>
+                                                <th class="text-center">Level</th>
+                                                <th class="text-center">Status</th>
+                                                <th class="text-center">Selection</th>
+                                                <th class="text-center">Actions</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -569,12 +430,7 @@
                                                             @case('parent')
                                                                 <span class="badge bg-primary">{{ $account->account_type }}</span>
                                                                 @break
-                                                            @case('detail')
-                                                                <span class="badge bg-success">{{ $account->account_type }}</span>
-                                                                @break
-                                                            @case('summary')
-                                                                <span class="badge bg-info">{{ $account->account_type }}</span>
-                                                                @break
+
                                                             @default
                                                                 <span class="badge bg-secondary">{{ $account->account_type }}</span>
                                                         @endswitch
@@ -631,12 +487,18 @@
                                                             </label>
                                                         </div>
                                                     </td>
-                                                    <td class="text-end">
+                                                    <td class="text-center">
                                                         <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $account->id }}">
                                                             <i class="bi bi-eye"></i>
+                                                            <span class="ms-1">view</span>
                                                         </button>
                                                         <button class="btn btn-sm btn-outline-warning btn-edit" title="Edit Account" data-id="{{ $account->id }}">
                                                             <i class="bi bi-pencil"></i>
+                                                            <span class="ms-1">edit</span>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger merge-accounts-btn" title="Merge Accounts" data-id="{{ $account->id }}">
+                                                            <i class="bi bi-arrow"></i>
+                                                            <span class="ms-1">merge</span>
                                                         </button>
                                                         <div class="btn-group" role="group">
                                                             <button class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown" title="Parent-Child Actions">
@@ -661,12 +523,12 @@
                                                                         <i class="bi bi-dash-circle text-warning me-2"></i>Remove All Children
                                                                     </a></li>
                                                                 @endif
-                                                                @if($account->parent || $account->children->count() > 0)
+                                                                {{-- @if($account->parent || $account->children->count() > 0)
                                                                     <li><hr class="dropdown-divider"></li>
                                                                     <li><a class="dropdown-item remove-all-relationships-btn" href="#" data-id="{{ $account->id }}">
                                                                         <i class="bi bi-trash text-danger me-2"></i>Remove All Relationships
                                                                     </a></li>
-                                                                @endif
+                                                                @endif --}}
                                                             </ul>
                                                         </div>
                                                     </td>
@@ -690,12 +552,6 @@
                                                                 @switch($child->account_type)
                                                                     @case('parent')
                                                                         <span class="badge bg-primary">{{ $child->account_type }}</span>
-                                                                        @break
-                                                                    @case('detail')
-                                                                        <span class="badge bg-success">{{ $child->account_type }}</span>
-                                                                        @break
-                                                                    @case('summary')
-                                                                        <span class="badge bg-info">{{ $child->account_type }}</span>
                                                                         @break
                                                                     @default
                                                                         <span class="badge bg-secondary">{{ $child->account_type }}</span>
@@ -736,11 +592,16 @@
                                                                     </label>
                                                                 </div>
                                                             </td>
-                                                            <td class="text-end">
-                                                                <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $child->id }}">
-                                                                    <i class="bi bi-eye"></i>
-                                                                </button>
-                                                            </td>
+                                                                                                                         <td class="text-center">
+                                                                 <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $child->id }}">
+                                                                     <i class="bi bi-eye"></i>
+                                                                     <span class="ms-1">view</span>
+                                                                 </button>
+                                                                 <button class="btn btn-sm btn-outline-warning btn-edit" title="Edit Account" data-id="{{ $child->id }}">
+                                                                     <i class="bi bi-pencil"></i>
+                                                                     <span class="ms-1">edit</span>
+                                                                 </button>
+                                                             </td>
                                                         </tr>
                                                     @endforeach
                                                 @endif
@@ -749,6 +610,214 @@
                                                     <td colspan="10" class="text-center text-muted py-4">
                                                         <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                                                         No GL accounts found
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Selected Accounts Table -->
+                <section class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                <h4 class="mb-0">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    Selected Accounts ({{ $selectedAccounts->count() }})
+                                </h4>
+                                <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <button type="button" class="btn btn-warning" id="btnDeselectAll">
+                                        <i class="bi bi-x-circle me-2"></i>Deselect All
+                                    </button>
+                                    <span class="badge rounded-pill bg-success text-white d-flex align-items-center px-3">
+                                        <i class="bi bi-check-circle me-2"></i>
+                                        Available in Cashflow
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="table-selected-accounts">
+                                        <thead class="text-center align-items-center">
+                                            <tr>
+                                                <th class="text-center" style="width: 50px;">
+                                                    <i class="bi bi-grip-vertical text-muted"></i>
+                                                </th>
+                                                <th class="text-center">Account Code</th>
+                                                <th class="text-center">Account Name</th>
+                                                <th class="text-center">Account Type</th>
+                                                <th class="text-center">Cashflow Type</th>
+                                                <th class="text-center">Parent Account</th>
+                                                <th class="text-center">Level</th>
+                                                <th class="text-center">Status</th>
+                                                <th class="text-center">Selection</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($selectedAccounts as $account)
+                                                <tr class="selected-account-row {{ $account->parent_id ? 'child-account' : 'parent-account' }}"
+                                                    data-id="{{ $account->id }}"
+                                                    data-order="{{ $loop->index }}"
+                                                    draggable="true">
+                                                    <td class="drag-handle text-center">
+                                                        <i class="bi bi-grip-vertical text-muted cursor-grab"></i>
+                                                    </td>
+                                                    <td>
+                                                        <span class="account-indicator indicator-{{ $account->account_type }}"></span>
+                                                        <span class="fw-medium text-primary">{{ $account->account_code }}</span>
+                                                    </td>
+                                                    <td>
+                                                        @if($account->parent_id)
+                                                            <div class="account-hierarchy">
+                                                                {{ $account->account_name }}
+                                                            </div>
+                                                        @else
+                                                            <strong>{{ $account->account_name }}</strong>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @switch($account->account_type)
+                                                            @case('parent')
+                                                                <span class="badge bg-primary">{{ $account->account_type }}</span>
+                                                                @break
+                                                            @case('single')
+                                                                <span class="badge bg-success">{{ $account->account_type }}</span>
+                                                                @break
+                                                            @case('child')
+                                                                <span class="badge bg-info">{{ $account->account_type }}</span>
+                                                                @break
+                                                            @default
+                                                                <span class="badge bg-secondary">{{ $account->account_type }}</span>
+                                                        @endswitch
+                                                    </td>
+                                                    <td>
+                                                        @php
+                                                            $cashflowType = $account->cashflow_type ?? 'disbursements';
+                                                            $actualType = $account->getMostCommonCashflowType();
+                                                            $displayType = $actualType ?: $cashflowType;
+                                                        @endphp
+                                                        @if($displayType === 'receipts')
+                                                            <span class="badge bg-success">Receipts</span>
+                                                        @else
+                                                            <span class="badge bg-danger">Disbursements</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($account->parent)
+                                                            <span class="text-muted">{{ $account->parent->account_name }}</span>
+                                                        @else
+                                                            <span class="text-muted">-</span>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-light text-dark">{{ $account->level }}</span>
+                                                        @if($account->parent || $account->children->count() > 0)
+                                                            <div class="mt-1">
+                                                                @if($account->children->count() > 0)
+                                                                    <span class="relationship-status has-children">
+                                                                        <i class="bi bi-arrow-down"></i>{{ $account->children->count() }} Children
+                                                                    </span>
+                                                                @elseif($account->parent)
+                                                                    <span class="relationship-status has-parent">
+                                                                        <i class="bi bi-arrow-up"></i>Child of {{ $account->parent->account_name }}
+                                                                    </span>
+                                                                @endif
+                                                            </div>
+                                                        @endif
+                                                    </td>
+                                                    <td>
+                                                        @if($account->is_active)
+                                                            <span class="badge bg-success">Active</span>
+                                                        @else
+                                                            <span class="badge bg-danger">Inactive</span>
+                                                        @endif
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <div class="form-check form-switch d-inline-block">
+                                                            <input class="form-check-input selection-toggle" type="checkbox"
+                                                                   data-id="{{ $account->id }}"
+                                                                   {{ $account->is_selected ? 'checked' : '' }}>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                @if($account->children->count() > 0)
+                                                    @foreach($account->children->where('is_selected', true) as $child)
+                                                        <tr class="child-account selected-account-row"
+                                                            data-id="{{ $child->id }}"
+                                                            data-order="{{ $loop->index }}"
+                                                            draggable="true">
+                                                            <td class="drag-handle text-center">
+                                                                <i class="bi bi-grip-vertical text-muted cursor-grab"></i>
+                                                            </td>
+                                                            <td>
+                                                                <span class="account-indicator indicator-{{ $child->account_type }}"></span>
+                                                                <span class="fw-medium text-primary">{{ $child->account_code }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <div class="account-hierarchy">
+                                                                    {{ $child->account_name }}
+                                                                </div>
+                                                            </td>
+                                                            <td>
+                                                                @switch($child->account_type)
+                                                                    @case('parent')
+                                                                        <span class="badge bg-primary">{{ $child->account_type }}</span>
+                                                                        @break
+                                                                    @case('child')
+                                                                        <span class="badge bg-success">{{ $child->account_type }}</span>
+                                                                        @break
+                                                                    @case('single')
+                                                                        <span class="badge bg-info">{{ $child->account_type }}</span>
+                                                                        @break
+                                                                    @default
+                                                                        <span class="badge bg-secondary">{{ $child->account_type }}</span>
+                                                                @endswitch
+                                                            </td>
+                                                            <td>
+                                                                @php
+                                                                    $childCashflowType = $child->cashflow_type ?? 'disbursements';
+                                                                    $childActualType = $child->getMostCommonCashflowType();
+                                                                    $childDisplayType = $childActualType ?: $childCashflowType;
+                                                                @endphp
+                                                                @if($childDisplayType === 'receipts')
+                                                                    <span class="badge bg-success">Receipts</span>
+                                                                @else
+                                                                    <span class="badge bg-danger">Disbursements</span>
+                                                                @endif
+                                                            </td>
+                                                            <td>
+                                                                <span class="text-muted">{{ $account->account_name }}</span>
+                                                            </td>
+                                                            <td>
+                                                                <span class="badge bg-light text-dark">{{ $child->level }}</span>
+                                                            </td>
+                                                            <td>
+                                                                @if($child->is_active)
+                                                                    <span class="badge bg-success">Active</span>
+                                                                @else
+                                                                    <span class="badge bg-danger">Inactive</span>
+                                                                @endif
+                                                            </td>
+                                                                                                                         <td class="text-center">
+                                                                 <div class="form-check form-switch d-inline-block">
+                                                                     <input class="form-check-input selection-toggle" type="checkbox"
+                                                                            data-id="{{ $child->id }}"
+                                                                            {{ $child->is_selected ? 'checked' : '' }}>
+                                                                 </div>
+                                                             </td>
+                                                        </tr>
+                                                    @endforeach
+                                                @endif
+                                            @empty
+                                                <tr>
+                                                    <td colspan="9" class="text-center text-muted py-4">
+                                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                                        No selected accounts found
                                                     </td>
                                                 </tr>
                                             @endforelse
@@ -843,8 +912,8 @@
                                         <label for="edit_account_type" class="form-label">Account Type <span class="text-danger">*</span></label>
                                         <select class="form-select" id="edit_account_type" name="account_type" required>
                                             <option value="parent">Parent</option>
-                                            <option value="detail">Detail</option>
-                                            <option value="summary">Summary</option>
+
+                                            <option value="child">Child</option>
                                         </select>
                                     </div>
                                     <div class="col-md-6">
@@ -992,6 +1061,65 @@
                 </div>
             </div>
 
+            <!-- Merge Accounts Modal -->
+            <div class="modal fade" id="mergeAccountsModal" tabindex="-1" aria-labelledby="mergeAccountsModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="mergeAccountsModalLabel">Merge Accounts</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="mergeAccountsForm">
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    <strong>Merge Information:</strong> This will combine multiple accounts into one main account. The merged accounts will be deactivated and their cashflows will be moved to the main account.
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="mainAccountName" class="form-label">Main Account Name <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="mainAccountName" name="new_account_name" required>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="mainAccountCode" class="form-label">Main Account Code <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="mainAccountCode" name="new_account_code" required>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Select Accounts to Merge <span class="text-danger">*</span></label>
+                                    <div class="border rounded p-3" style="max-height: 300px; overflow-y: auto;">
+                                        <div id="mergeAccountsList">
+                                            <!-- Accounts will be loaded here -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Merge Preview</label>
+                                    <div id="mergePreview" class="border rounded p-3 bg-light">
+                                        <p class="text-muted mb-0">Select accounts above to see the merge preview.</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-2"></i>Cancel
+                                </button>
+                                <button type="submit" class="btn btn-info">
+                                    <i class="bi bi-arrow-merge me-2"></i>Merge Accounts
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -1011,6 +1139,9 @@
                 new bootstrap.Tooltip(tooltipTriggerEl);
             });
 
+            // Initialize drag and drop for selected accounts table
+            initializeDragAndDrop();
+
             // Initialize DataTables
             const glAccountsTable = document.querySelector('#table-gl-accounts');
             const selectedAccountsTable = document.querySelector('#table-selected-accounts');
@@ -1027,7 +1158,8 @@
 
             // Search functionality
             let searchTimeout;
-            document.getElementById('searchInput').addEventListener('input', function() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(() => {
                     loadAccounts();
@@ -1035,12 +1167,16 @@
             });
 
             // Filter functionality
-            document.getElementById('accountTypeFilter').addEventListener('change', loadAccounts);
-            document.getElementById('cashflowTypeFilter').addEventListener('change', loadAccounts);
-            document.getElementById('selectionFilter').addEventListener('change', loadAccounts);
+            const accountTypeFilter = document.getElementById('accountTypeFilter');
+            const cashflowTypeFilter = document.getElementById('cashflowTypeFilter');
+            const selectionFilter = document.getElementById('selectionFilter');
+            if (accountTypeFilter) accountTypeFilter.addEventListener('change', loadAccounts);
+            if (cashflowTypeFilter) cashflowTypeFilter.addEventListener('change', loadAccounts);
+            if (selectionFilter) selectionFilter.addEventListener('change', loadAccounts);
 
             // Select all checkbox
-            document.getElementById('selectAllCheckbox').addEventListener('change', function() {
+            const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+            if (selectAllCheckbox) selectAllCheckbox.addEventListener('change', function() {
                 const checkboxes = document.querySelectorAll('.account-checkbox');
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = this.checked;
@@ -1061,16 +1197,43 @@
                     const isSelected = e.target.checked;
                     updateSelection(accountId, isSelected);
                 }
+
+                // Handle child selection to also select parent
+                if (e.target.classList.contains('account-checkbox')) {
+                    const accountId = e.target.value;
+                    const isSelected = e.target.checked;
+                    const row = e.target.closest('tr');
+
+                    // If this is a child account, also select/deselect the parent
+                    if (row.classList.contains('child-account')) {
+                        const parentRow = row.previousElementSibling;
+                        if (parentRow && parentRow.classList.contains('parent-account')) {
+                            const parentCheckbox = parentRow.querySelector('.account-checkbox');
+                            if (parentCheckbox) {
+                                parentCheckbox.checked = isSelected;
+                            }
+                        }
+                    }
+
+                    // If this is a parent account, also select/deselect all children
+                    if (row.classList.contains('parent-account')) {
+                        const childRows = row.parentNode.querySelectorAll(`tr.child-account[data-parent-id="${accountId}"]`);
+                        childRows.forEach(childRow => {
+                            const childCheckbox = childRow.querySelector('.account-checkbox');
+                            if (childCheckbox) {
+                                childCheckbox.checked = isSelected;
+                            }
+                        });
+                    }
+                }
             });
 
             // Bulk actions
-            document.getElementById('btnSelectAll').addEventListener('click', function() {
-                selectAll();
-            });
+            const btnSelectAll = document.getElementById('btnSelectAll');
+            if (btnSelectAll) btnSelectAll.addEventListener('click', function() { selectAll(); });
 
-            document.getElementById('btnDeselectAll').addEventListener('click', function() {
-                deselectAll();
-            });
+            const btnDeselectAll = document.getElementById('btnDeselectAll');
+            if (btnDeselectAll) btnDeselectAll.addEventListener('click', function() { deselectAll(); });
 
             // View buttons
             document.querySelectorAll('.btn-view').forEach(btn => {
@@ -1334,8 +1497,8 @@
             function getAccountTypeBadge(type) {
                 const badges = {
                     'parent': '<span class="badge bg-primary">parent</span>',
-                    'detail': '<span class="badge bg-success">detail</span>',
-                    'summary': '<span class="badge bg-info">summary</span>'
+                    'single': '<span class="badge bg-success">single</span>',
+                    'child': '<span class="badge bg-info">child</span>'
                 };
                 return badges[type] || `<span class="badge bg-secondary">${type}</span>`;
             }
@@ -1451,11 +1614,28 @@
                     removeParentChild(accountId, 'remove_all');
                     return;
                 }
+
+                // Merge accounts functionality
+                const mergeAccountsBtn = e.target.closest('.merge-accounts-btn');
+                if (mergeAccountsBtn) {
+                    e.preventDefault();
+                    const accountId = mergeAccountsBtn.dataset.id;
+                    loadMergeAccountsModal(accountId);
+                    return;
+                }
+
+                const unmergeAccountsBtn = e.target.closest('.unmerge-accounts-btn');
+                if (unmergeAccountsBtn) {
+                    e.preventDefault();
+                    const accountId = unmergeAccountsBtn.dataset.id;
+                    unmergeAccounts(accountId);
+                    return;
+                }
             });
 
             function loadMakeParentModal(accountId) {
                 // Get all accounts that could be children
-                fetch('{{ route('admin.gl-accounts.get-accounts') }}', {
+                fetch('{{ route('admin.gl-accounts.get-accounts') }}?context=make_parent', {
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json',
@@ -1473,7 +1653,7 @@
                         childSelect.innerHTML = '';
 
                         data.data.forEach(account => {
-                            if (account.id != accountId) {
+                            if (account.id != accountId && account.account_type === 'single') {
                                 const option = document.createElement('option');
                                 option.value = account.id;
                                 option.textContent = `${account.account_code} - ${account.account_name}`;
@@ -1591,16 +1771,19 @@
             }
 
             // Bulk cashflow type update functionality
-            document.getElementById('btnUpdateCashflowTypes').addEventListener('click', function() {
-                const checkedBoxes = document.querySelectorAll('.account-checkbox:checked');
-                if (checkedBoxes.length === 0) {
-                    showAlert('Please select at least one account to update', 'warning');
-                    return;
-                }
+            const btnUpdateCashflowTypes = document.getElementById('btnUpdateCashflowTypes');
+            if (btnUpdateCashflowTypes) {
+                btnUpdateCashflowTypes.addEventListener('click', function() {
+                    const checkedBoxes = document.querySelectorAll('.account-checkbox:checked');
+                    if (checkedBoxes.length === 0) {
+                        showAlert('Please select at least one account to update', 'warning');
+                        return;
+                    }
 
-                const bulkModal = new bootstrap.Modal(document.getElementById('bulkCashflowTypeModal'));
-                bulkModal.show();
-            });
+                    const bulkModal = new bootstrap.Modal(document.getElementById('bulkCashflowTypeModal'));
+                    bulkModal.show();
+                });
+            }
 
             // Form submissions
             document.getElementById('editAccountForm').addEventListener('submit', function(e) {
@@ -1637,31 +1820,45 @@
             document.getElementById('makeParentForm').addEventListener('submit', function(e) {
                 e.preventDefault();
                 const accountId = this.dataset.accountId;
-                const formData = new FormData(this);
+                const childSelect = document.getElementById('childAccounts');
+                if (!childSelect) {
+                    showAlert('Child selection list not found. Please reload the page.', 'error');
+                    return;
+                }
+                const selectedChildIds = Array.from(childSelect.selectedOptions).map(o => o.value);
+
+                if (selectedChildIds.length === 0) {
+                    showAlert('Please select at least one child account.', 'warning');
+                    return;
+                }
 
                 fetch(`{{ route('admin.gl-accounts') }}/${accountId}/make-parent`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json',
+                        'Content-Type': 'application/json',
                     },
-                    body: formData
+                    body: JSON.stringify({ child_ids: selectedChildIds })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        bootstrap.Modal.getInstance(document.getElementById('makeParentModal')).hide();
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        showAlert(data.message || 'Failed to make parent', 'error');
+                .then(async response => {
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        const message = data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to make parent');
+                        throw new Error(message);
                     }
+                    return data;
+                })
+                .then(data => {
+                    showAlert(data.message || 'Account updated successfully', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('makeParentModal')).hide();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 800);
                 })
                 .catch(error => {
                     console.error('Error making parent:', error);
-                    showAlert('Error making parent', 'error');
+                    showAlert(error.message || 'Error making parent', 'error');
                 });
             });
 
@@ -1698,6 +1895,297 @@
                     showAlert('Error updating cashflow types', 'error');
                 });
             });
+
+            // Merge accounts functionality
+            function loadMergeAccountsModal(accountId) {
+                // Get all accounts that could be merged
+                fetch('{{ route('admin.gl-accounts.get-accounts') }}', {
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success && data.data) {
+                        const mergeAccountsList = document.getElementById('mergeAccountsList');
+                        mergeAccountsList.innerHTML = '';
+
+                        data.data.forEach(account => {
+                            if (account.id != accountId && !account.merged_into) {
+                                const div = document.createElement('div');
+                                div.className = 'form-check mb-2';
+                                div.innerHTML = `
+                                    <input class="form-check-input merge-account-checkbox" type="checkbox" value="${account.id}" id="merge_${account.id}">
+                                    <label class="form-check-label" for="merge_${account.id}">
+                                        <strong>${account.account_code}</strong> - ${account.account_name}
+                                        <span class="badge bg-secondary ms-2">${account.account_type}</span>
+                                    </label>
+                                `;
+                                mergeAccountsList.appendChild(div);
+                            }
+                        });
+
+                        // Get account name for display
+                        const row = document.querySelector(`tr[data-id="${accountId}"]`);
+                        if (row) {
+                            const accountName = row.querySelector('td:nth-child(3)').textContent.trim();
+                            const accountCode = row.querySelector('td:nth-child(2)').textContent.trim();
+                            document.getElementById('mainAccountName').value = accountName;
+                            document.getElementById('mainAccountCode').value = accountCode;
+                        }
+
+                        // Store account ID for form submission
+                        document.getElementById('mergeAccountsForm').dataset.accountId = accountId;
+
+                        // Add event listener for merge preview
+                        const checkboxes = document.querySelectorAll('.merge-account-checkbox');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.addEventListener('change', updateMergePreview);
+                        });
+
+                        // Show modal
+                        const mergeModal = new bootstrap.Modal(document.getElementById('mergeAccountsModal'));
+                        mergeModal.show();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading accounts for merge:', error);
+                    showAlert('Error loading accounts', 'error');
+                });
+            }
+
+            function updateMergePreview() {
+                const checkboxes = document.querySelectorAll('.merge-account-checkbox:checked');
+                const previewDiv = document.getElementById('mergePreview');
+                const mainAccountName = document.getElementById('mainAccountName').value;
+                const mainAccountCode = document.getElementById('mainAccountCode').value;
+
+                if (checkboxes.length === 0) {
+                    previewDiv.innerHTML = '<p class="text-muted mb-0">Select accounts above to see the merge preview.</p>';
+                    return;
+                }
+
+                let previewHTML = `
+                    <div class="mb-2">
+                        <strong class="text-primary">Main Account:</strong> ${mainAccountCode} - ${mainAccountName}
+                    </div>
+                    <div class="mb-2">
+                        <strong class="text-info">Accounts to be merged:</strong>
+                    </div>
+                    <ul class="list-unstyled ms-3">
+                `;
+
+                checkboxes.forEach(checkbox => {
+                    const label = checkbox.nextElementSibling.textContent.trim();
+                    previewHTML += `<li><i class="bi bi-arrow-right text-success"></i> ${label}</li>`;
+                });
+
+                previewHTML += '</ul>';
+                previewDiv.innerHTML = previewHTML;
+            }
+
+            function unmergeAccounts(accountId) {
+                Swal.fire({
+                    title: 'Unmerge Accounts',
+                    text: 'Are you sure you want to unmerge accounts? This will restore all merged accounts to their original state.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, unmerge!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`{{ route('admin.gl-accounts') }}/${accountId}/unmerge`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showAlert(data.message, 'success');
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                showAlert(data.message || 'Failed to unmerge accounts', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error unmerging accounts:', error);
+                            showAlert('Error unmerging accounts', 'error');
+                        });
+                    }
+                });
+            }
+
+            // Merge accounts form submission
+            document.getElementById('mergeAccountsForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const accountId = this.dataset.accountId;
+                const checkedBoxes = document.querySelectorAll('.merge-account-checkbox:checked');
+                const accountIds = Array.from(checkedBoxes).map(cb => cb.value);
+
+                if (accountIds.length === 0) {
+                    showAlert('Please select at least one account to merge', 'warning');
+                    return;
+                }
+
+                // Create the request data
+                const requestData = {
+                    account_ids: accountIds,
+                    new_account_name: document.getElementById('mainAccountName').value,
+                    new_account_code: document.getElementById('mainAccountCode').value
+                };
+
+                fetch(`{{ route('admin.gl-accounts') }}/${accountId}/merge`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestData)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('mergeAccountsModal')).hide();
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showAlert(data.message || 'Failed to merge accounts', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error merging accounts:', error);
+                    showAlert('Error merging accounts', 'error');
+                });
+            });
+
+            // Drag and Drop functionality for Selected Accounts table
+            function initializeDragAndDrop() {
+                const tbody = document.getElementById('selected-accounts-tbody');
+                if (!tbody) return;
+
+                let draggedRow = null;
+                let draggedIndex = null;
+
+                // Add drag event listeners to all rows
+                function addDragListeners(row) {
+                    row.addEventListener('dragstart', handleDragStart);
+                    row.addEventListener('dragend', handleDragEnd);
+                    row.addEventListener('dragover', handleDragOver);
+                    row.addEventListener('drop', handleDrop);
+                    row.addEventListener('dragenter', handleDragEnter);
+                    row.addEventListener('dragleave', handleDragLeave);
+                }
+
+                // Initialize drag listeners for existing rows
+                document.querySelectorAll('.selected-account-row').forEach(addDragListeners);
+
+                function handleDragStart(e) {
+                    draggedRow = this;
+                    draggedIndex = Array.from(this.parentNode.children).indexOf(this);
+                    this.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/html', this.outerHTML);
+                }
+
+                function handleDragEnd(e) {
+                    this.classList.remove('dragging');
+                    draggedRow = null;
+                    draggedIndex = null;
+                }
+
+                function handleDragOver(e) {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                }
+
+                function handleDragEnter(e) {
+                    e.preventDefault();
+                    this.classList.add('drag-over');
+                }
+
+                function handleDragLeave(e) {
+                    this.classList.remove('drag-over');
+                }
+
+                function handleDrop(e) {
+                    e.preventDefault();
+                    this.classList.remove('drag-over');
+
+                    if (draggedRow && draggedRow !== this) {
+                        const rows = Array.from(tbody.children);
+                        const dropIndex = Array.from(this.parentNode.children).indexOf(this);
+
+                        // Remove dragged row from its current position
+                        draggedRow.remove();
+
+                        // Insert at new position
+                        if (dropIndex > draggedIndex) {
+                            tbody.insertBefore(draggedRow, this.nextSibling);
+                        } else {
+                            tbody.insertBefore(draggedRow, this);
+                        }
+
+                        // Update order attributes
+                        rows.forEach((row, index) => {
+                            if (row.classList.contains('selected-account-row')) {
+                                row.setAttribute('data-order', index);
+                            }
+                        });
+
+                        // Show success message
+                        showAlert('Account order updated successfully!', 'success');
+
+                        // Save the new order to backend (optional)
+                        saveAccountOrder();
+                    }
+                }
+
+                // Function to save the new order to backend
+                function saveAccountOrder() {
+                    const rows = Array.from(tbody.querySelectorAll('.selected-account-row'));
+                    const orderData = rows.map((row, index) => ({
+                        id: row.dataset.id,
+                        order: index
+                    }));
+
+                    // Send to backend
+                    fetch('{{ route("admin.gl-accounts.update-order") }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ order: orderData })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log('Order saved successfully:', data.message);
+                        } else {
+                            console.error('Failed to save order:', data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error saving order:', error);
+                    });
+                }
+            }
         });
     </script>
 </body>

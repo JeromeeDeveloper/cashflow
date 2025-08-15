@@ -52,8 +52,15 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::post('/gl-accounts/{glAccount}/make-parent', [GLAccountsController::class, 'makeParent'])->name('gl-accounts.make-parent');
     Route::post('/gl-accounts/{glAccount}/remove-parent-child', [GLAccountsController::class, 'removeParentChild'])->name('gl-accounts.remove-parent-child');
 
+    // Merge accounts routes
+    Route::post('/gl-accounts/{glAccount}/merge', [GLAccountsController::class, 'mergeAccounts'])->name('gl-accounts.merge');
+    Route::post('/gl-accounts/{glAccount}/unmerge', [GLAccountsController::class, 'unmergeAccounts'])->name('gl-accounts.unmerge');
+
     // Cashflow type management
     Route::post('/gl-accounts/update-cashflow-types', [GLAccountsController::class, 'updateCashflowTypes'])->name('gl-accounts.update-cashflow-types');
+
+    // Account order management
+    Route::post('/gl-accounts/update-order', [GLAccountsController::class, 'updateOrder'])->name('gl-accounts.update-order');
 });
 
 Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(function () {

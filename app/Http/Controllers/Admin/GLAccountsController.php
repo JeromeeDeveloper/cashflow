@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\GLAccount;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 
 class GLAccountsController extends Controller
 {
@@ -109,6 +110,27 @@ class GLAccountsController extends Controller
     }
 
     /**
+     * Update the order of selected accounts.
+     */
+    public function updateOrder(Request $request): JsonResponse
+    {
+        $request->validate([
+            'order' => 'required|array',
+            'order.*.id' => 'required|exists:gl_accounts,id',
+            'order.*.order' => 'required|integer|min:0'
+        ]);
+
+        foreach ($request->order as $item) {
+            GLAccount::where('id', $item['id'])->update(['display_order' => $item['order']]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Account order updated successfully'
+        ]);
+    }
+
+    /**
      * Get GL accounts for AJAX requests.
      */
     public function getAccounts(Request $request): JsonResponse
@@ -127,6 +149,11 @@ class GLAccountsController extends Controller
         // Filter by account type
         if ($request->has('account_type') && $request->account_type) {
             $query->where('account_type', $request->account_type);
+        }
+
+        // When loading for make-parent modal, only show eligible child candidates (single accounts and not the parent itself)
+        if ($request->has('context') && $request->context === 'make_parent') {
+            $query->where('account_type', 'single');
         }
 
         // Filter by selection status
@@ -185,7 +212,7 @@ class GLAccountsController extends Controller
         $request->validate([
             'account_code' => 'required|string|max:50|unique:gl_accounts,account_code,' . $glAccount->id,
             'account_name' => 'required|string|max:255',
-            'account_type' => 'required|in:parent,detail,summary',
+            'account_type' => 'required|in:parent,single,child',
             'cashflow_type' => 'required|in:receipts,disbursements',
             'parent_id' => 'nullable|exists:gl_accounts,id',
             'is_active' => 'boolean',
@@ -260,7 +287,8 @@ class GLAccountsController extends Controller
             if ($child) {
                 $child->update([
                     'parent_id' => $glAccount->id,
-                    'level' => $glAccount->level + 1
+                    'level' => $glAccount->level + 1,
+                    'account_type' => 'child'
                 ]);
             }
         }
@@ -285,25 +313,38 @@ class GLAccountsController extends Controller
             case 'remove_parent':
                 $glAccount->update([
                     'parent_id' => null,
-                    'level' => 1
+                    'level' => 1,
+                ]);
+                // If it still has children, remain a parent; otherwise become single
+                $glAccount->refresh();
+                $glAccount->update([
+                    'account_type' => ($glAccount->children()->count() > 0) ? 'parent' : 'single'
                 ]);
                 break;
 
             case 'remove_children':
                 $glAccount->children()->update([
                     'parent_id' => null,
-                    'level' => 1
+                    'level' => 1,
+                    'account_type' => 'single'
+                ]);
+                // After removing children, update this account type based on whether it has a parent
+                $glAccount->refresh();
+                $glAccount->update([
+                    'account_type' => ($glAccount->parent) ? 'child' : 'single'
                 ]);
                 break;
 
             case 'remove_all':
                 $glAccount->update([
                     'parent_id' => null,
-                    'level' => 1
+                    'level' => 1,
+                    'account_type' => 'single'
                 ]);
                 $glAccount->children()->update([
                     'parent_id' => null,
-                    'level' => 1
+                    'level' => 1,
+                    'account_type' => 'single'
                 ]);
                 break;
         }
@@ -333,5 +374,143 @@ class GLAccountsController extends Controller
             'success' => true,
             'message' => 'Cashflow types updated successfully.'
         ]);
+    }
+
+    /**
+     * Merge multiple accounts into one main account.
+     */
+    public function mergeAccounts(Request $request, GLAccount $glAccount)
+    {
+        $request->validate([
+            'account_ids' => 'required|array',
+            'account_ids.*' => 'exists:gl_accounts,id',
+            'new_account_name' => 'required|string|max:255',
+            'new_account_code' => 'required|string|max:50'
+        ]);
+
+        // Check if any of the accounts to merge are already merged
+        $accountsToMerge = GLAccount::whereIn('id', $request->account_ids)->get();
+        foreach ($accountsToMerge as $account) {
+            if ($account->isMerged()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Account {$account->account_name} is already merged into another account."
+                ], 422);
+            }
+        }
+
+        // Check if the main account is already merged
+        if ($glAccount->isMerged()) {
+            return response()->json([
+                'success' => false,
+                'message' => "Main account {$glAccount->account_name} is already merged into another account."
+            ], 422);
+        }
+
+        // Start transaction
+        DB::beginTransaction();
+
+        try {
+            // Update the main account with new name and code
+            $glAccount->update([
+                'account_name' => $request->new_account_name,
+                'account_code' => $request->new_account_code,
+                'account_type' => 'parent', // Merged accounts become parent type
+                'level' => 1
+            ]);
+
+            // Store information about merged accounts
+            $mergedAccountsInfo = [];
+            foreach ($accountsToMerge as $account) {
+                $mergedAccountsInfo[] = [
+                    'id' => $account->id,
+                    'code' => $account->account_code,
+                    'name' => $account->account_name,
+                    'merged_at' => now()->toISOString()
+                ];
+            }
+
+            // Update the main account's merged_from field
+            $glAccount->update([
+                'merged_from' => json_encode($mergedAccountsInfo)
+            ]);
+
+            // Mark all accounts to merge as merged into the main account
+            GLAccount::whereIn('id', $request->account_ids)->update([
+                'merged_into' => $glAccount->id,
+                'is_active' => false // Deactivate merged accounts
+            ]);
+
+            // Move cashflows from merged accounts to the main account
+            foreach ($accountsToMerge as $account) {
+                $account->cashflows()->update(['gl_account_id' => $glAccount->id]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Accounts merged successfully.',
+                'account' => $glAccount->load('mergedFrom')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to merge accounts: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Unmerge accounts (restore merged accounts).
+     */
+    public function unmergeAccounts(Request $request, GLAccount $glAccount)
+    {
+        if (!$glAccount->hasMergedAccounts()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'This account has no merged accounts to restore.'
+            ], 422);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            // Get merged accounts info
+            $mergedAccountsInfo = $glAccount->getMergedFromArrayAttribute();
+
+            // Restore merged accounts
+            foreach ($mergedAccountsInfo as $accountInfo) {
+                $account = GLAccount::find($accountInfo['id']);
+                if ($account) {
+                    $account->update([
+                        'merged_into' => null,
+                        'is_active' => true
+                    ]);
+                }
+            }
+
+            // Clear merged_from field from main account
+            $glAccount->update([
+                'merged_from' => null
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Accounts unmerged successfully.',
+                'account' => $glAccount->load('mergedFrom')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to unmerge accounts: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

@@ -22,6 +22,8 @@ class GLAccount extends Model
         'is_active',
         'is_selected',
         'cashflow_type',
+        'merged_into',
+        'merged_from',
     ];
 
     /**
@@ -206,5 +208,69 @@ class GLAccount extends Model
     public function scopeByName($query, $name)
     {
         return $query->where('account_name', 'LIKE', '%' . $name . '%');
+    }
+
+    /**
+     * Get the account this account is merged into.
+     */
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(GLAccount::class, 'merged_into');
+    }
+
+    /**
+     * Get accounts that were merged into this account.
+     */
+    public function mergedFrom(): HasMany
+    {
+        return $this->hasMany(GLAccount::class, 'merged_into');
+    }
+
+    /**
+     * Check if this account has been merged into another account.
+     */
+    public function isMerged(): bool
+    {
+        return !is_null($this->merged_into);
+    }
+
+    /**
+     * Check if this account has other accounts merged into it.
+     */
+    public function hasMergedAccounts(): bool
+    {
+        return $this->mergedFrom()->exists();
+    }
+
+    /**
+     * Get the merged accounts as an array.
+     */
+    public function getMergedFromArrayAttribute(): array
+    {
+        return $this->merged_from ? json_decode($this->merged_from, true) : [];
+    }
+
+    /**
+     * Set the merged accounts array.
+     */
+    public function setMergedFromArrayAttribute($value): void
+    {
+        $this->merged_from = json_encode($value);
+    }
+
+    /**
+     * Scope to get only non-merged accounts.
+     */
+    public function scopeNotMerged($query)
+    {
+        return $query->whereNull('merged_into');
+    }
+
+    /**
+     * Scope to get only merged accounts.
+     */
+    public function scopeMerged($query)
+    {
+        return $query->whereNotNull('merged_into');
     }
 }

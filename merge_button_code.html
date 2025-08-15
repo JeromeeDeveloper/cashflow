@@ -1,0 +1,15 @@
+<!-- ADD THIS CODE AFTER "Make This Account a Parent" in your dropdown menu -->
+
+<li><hr class="dropdown-divider"></li>
+<li><h6 class="dropdown-header">Merge Accounts</h6></li>
+<li><a class="dropdown-item merge-accounts-btn" href="#" data-id="{{ $account->id }}">
+    <i class="bi bi-arrow-merge text-info me-2"></i>Merge Accounts Into This
+</a></li>
+@if($account->hasMergedAccounts())
+    <li><a class="dropdown-item unmerge-accounts-btn" href="#" data-id="{{ $account->id }}">
+        <i class="bi bi-arrow-return-left text-warning me-2"></i>Unmerge Accounts
+    </a></li>
+@endif
+<li><hr class="dropdown-divider"></li>
+
+<!-- ADD THIS CODE AFTER "Make This Account a Parent" in your dropdown menu -->
