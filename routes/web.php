@@ -9,6 +9,7 @@ use App\Http\Controllers\Branch\CashflowController as BranchCashflowController;
 use App\Http\Controllers\Branch\FileController as BranchFileController;
 
 use App\Http\Controllers\Admin\UsersController;
+use App\Http\Controllers\Admin\GLAccountsController;
 use App\Http\Controllers\Head\FileController;
 use App\Http\Controllers\Head\CashflowController as HeadCashflowController;
 use App\Http\Controllers\Head\GLAccountController;
@@ -24,6 +25,7 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/dashboard', [AdminDashboardController::class, 'index'])->name('dashboard');
     Route::get('/users', [UsersController::class, 'index'])->name('users');
+    Route::get('/gl-accounts', [GLAccountsController::class, 'index'])->name('gl-accounts');
 
     // User Management CRUD routes
     Route::get('/users/list', [UsersController::class, 'getUsers'])->name('users.list');
@@ -33,6 +35,25 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
     Route::delete('/users/{user}', [UsersController::class, 'destroy'])->name('users.destroy');
     Route::get('/users/stats', [UsersController::class, 'getStats'])->name('users.stats');
     Route::get('/users/export', [UsersController::class, 'export'])->name('users.export');
+
+    // GL Accounts Management routes
+    Route::post('/gl-accounts/{glAccount}/selection', [GLAccountsController::class, 'updateSelection'])->name('gl-accounts.update-selection');
+    Route::post('/gl-accounts/bulk-selection', [GLAccountsController::class, 'bulkUpdateSelection'])->name('gl-accounts.bulk-selection');
+    Route::post('/gl-accounts/select-all', [GLAccountsController::class, 'selectAll'])->name('gl-accounts.select-all');
+    Route::post('/gl-accounts/deselect-all', [GLAccountsController::class, 'deselectAll'])->name('gl-accounts.deselect-all');
+    Route::get('/gl-accounts/get-accounts', [GLAccountsController::class, 'getAccounts'])->name('gl-accounts.get-accounts');
+    Route::get('/gl-accounts/stats', [GLAccountsController::class, 'getStats'])->name('gl-accounts.stats');
+
+    // Edit and update routes
+    Route::get('/gl-accounts/{glAccount}/edit', [GLAccountsController::class, 'edit'])->name('gl-accounts.edit');
+    Route::put('/gl-accounts/{glAccount}', [GLAccountsController::class, 'update'])->name('gl-accounts.update');
+
+    // Parent-child relationship routes
+    Route::post('/gl-accounts/{glAccount}/make-parent', [GLAccountsController::class, 'makeParent'])->name('gl-accounts.make-parent');
+    Route::post('/gl-accounts/{glAccount}/remove-parent-child', [GLAccountsController::class, 'removeParentChild'])->name('gl-accounts.remove-parent-child');
+
+    // Cashflow type management
+    Route::post('/gl-accounts/update-cashflow-types', [GLAccountsController::class, 'updateCashflowTypes'])->name('gl-accounts.update-cashflow-types');
 });
 
 Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(function () {

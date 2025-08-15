@@ -20,6 +20,8 @@ class GLAccount extends Model
         'account_type',
         'level',
         'is_active',
+        'is_selected',
+        'cashflow_type',
     ];
 
     /**
@@ -100,6 +102,86 @@ class GLAccount extends Model
         }
 
         return $name;
+    }
+
+    /**
+     * Get the account type for cashflow categorization (receipts/disbursements).
+     */
+    public function getCashflowTypeAttribute(): string
+    {
+        // Determine if this account is typically for receipts or disbursements
+        // based on account type and name patterns
+        $accountName = strtolower($this->account_name ?? '');
+        $accountCode = strtolower($this->account_code ?? '');
+
+        // Receipts patterns
+        $receiptPatterns = [
+            'income', 'revenue', 'collection', 'receipt', 'payment', 'loan', 'interest',
+            'fee', 'commission', 'sale', 'rent', 'dividend', 'refund'
+        ];
+
+        // Disbursements patterns
+        $disbursementPatterns = [
+            'expense', 'cost', 'payment', 'disbursement', 'outlay', 'expenditure',
+            'purchase', 'salary', 'rent', 'utility', 'maintenance', 'repair'
+        ];
+
+        foreach ($receiptPatterns as $pattern) {
+            if (str_contains($accountName, $pattern) || str_contains($accountCode, $pattern)) {
+                return 'receipts';
+            }
+        }
+
+        foreach ($disbursementPatterns as $pattern) {
+            if (str_contains($accountName, $pattern) || str_contains($accountCode, $pattern)) {
+                return 'disbursements';
+            }
+        }
+
+        // Default based on account type
+        return in_array($this->account_type, ['Income', 'Asset']) ? 'receipts' : 'disbursements';
+    }
+
+    /**
+     * Get all descendants including children, grandchildren, etc.
+     */
+    public function getAllDescendants()
+    {
+        return $this->children()->with('children')->get();
+    }
+
+    /**
+     * Check if account has children.
+     */
+    public function hasChildren(): bool
+    {
+        return $this->children()->exists();
+    }
+
+    /**
+     * Get the most common cashflow type from this account's cashflows.
+     */
+    public function getMostCommonCashflowType(): ?string
+    {
+        $cashflows = $this->cashflows()->select('section')->get();
+
+        if ($cashflows->isEmpty()) {
+            return null;
+        }
+
+        $sections = $cashflows->pluck('section')->filter();
+
+        if ($sections->isEmpty()) {
+            return null;
+        }
+
+        // Count occurrences of each section
+        $sectionCounts = $sections->countBy();
+
+        // Get the section with the highest count
+        $mostCommon = $sectionCounts->sortDesc()->keys()->first();
+
+        return $mostCommon;
     }
 
     /**

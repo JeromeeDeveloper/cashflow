@@ -77,8 +77,7 @@
                                             <tr>
                                                 <th>Account Code</th>
                                                 <th>Account Name</th>
-                                                <th>Account Type</th>
-                                                <th>Category</th>
+
                                                 <th>Branch</th>
                                                 <th class="text-end">Actual Amount</th>
                                                 <th class="text-end">Projection %</th>
@@ -92,42 +91,6 @@
                                                 <tr data-id="{{ $cashflow->id }}">
                                                     <td>{{ $cashflow->glAccount->account_code ?? 'N/A' }}</td>
                                                     <td>{{ $cashflow->glAccount->account_name ?? $cashflow->account_name ?? 'N/A' }}</td>
-                                                    <td>
-                                                        @switch($cashflow->account_type)
-                                                            @case('Asset')
-                                                                <span class="badge bg-primary">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Liability')
-                                                                <span class="badge bg-danger">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Equity')
-                                                                <span class="badge bg-success">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Income')
-                                                                <span class="badge bg-info">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Expense')
-                                                                <span class="badge bg-warning text-dark">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @default
-                                                                <span class="badge bg-secondary">{{ $cashflow->account_type }}</span>
-                                                        @endswitch
-                                                    </td>
-                                                    <td>
-                                                        @switch($cashflow->cashflow_category)
-                                                            @case('Operating')
-                                                                <span class="badge bg-info text-dark">{{ $cashflow->cashflow_category }}</span>
-                                                                @break
-                                                            @case('Investing')
-                                                                <span class="badge bg-warning text-dark">{{ $cashflow->cashflow_category }}</span>
-                                                                @break
-                                                            @case('Financing')
-                                                                <span class="badge bg-success">{{ $cashflow->cashflow_category }}</span>
-                                                                @break
-                                                            @default
-                                                                <span class="badge bg-secondary">{{ $cashflow->cashflow_category }}</span>
-                                                        @endswitch
-                                                    </td>
                                                     <td>{{ $cashflow->branch->name ?? 'N/A' }}</td>
                                                                                                     <td class="text-end">{{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}</td>
                                                 <td class="text-end">{{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) : '0.00' }}%</td>

@@ -20,6 +20,9 @@ class CashflowController extends Controller
     {
         $branches = Branch::all();
         $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->whereHas('glAccount', function($query) {
+                $query->where('is_selected', true);
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -31,7 +34,10 @@ class CashflowController extends Controller
      */
     public function getCashflows(Request $request): JsonResponse
     {
-        $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount']);
+        $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->whereHas('glAccount', function($query) {
+                $query->where('is_selected', true);
+            });
 
         // Filter by year
         if ($request->filled('year')) {

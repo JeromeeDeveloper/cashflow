@@ -35,6 +35,12 @@
                             <span>User Management</span>
                         </a>
                     </li>
+                    <li class="sidebar-item {{ request()->routeIs('admin.gl-accounts*') ? 'active' : '' }}">
+                        <a href="{{ route('admin.gl-accounts') }}" class="sidebar-link">
+                            <i class="bi bi-journal-check"></i>
+                            <span>GL Accounts Management</span>
+                        </a>
+                    </li>
                 @elseif(Auth::user()->role === 'head')
                     <li class="sidebar-item {{ request()->routeIs('head.dashboard') ? 'active' : '' }}">
                         <a href="{{ route('head.dashboard') }}" class="sidebar-link">
