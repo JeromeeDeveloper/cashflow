@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/simple-datatables/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/sweetalert2/sweetalert2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.svg') }}" type="image/x-icon">
     <style>
@@ -997,6 +998,7 @@
     <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
     <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
+    <script src="{{ asset('assets/vendors/sweetalert2/sweetalert2.all.min.js') }}"></script>
     <script src="{{ asset('assets/js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -1227,52 +1229,78 @@
             }
 
             function selectAll() {
-                fetch('{{ route('admin.gl-accounts.select-all') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
+                Swal.fire({
+                    title: 'Select All Accounts',
+                    text: 'Are you sure you want to select all GL accounts? This will mark all accounts for display in cash flow reports.',
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, select all!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch('{{ route('admin.gl-accounts.select-all') }}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showAlert(data.message, 'success');
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                showAlert(data.message || 'Failed to select all', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error selecting all:', error);
+                            showAlert('Error selecting all accounts', 'error');
+                        });
                     }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        showAlert(data.message || 'Failed to select all', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error selecting all:', error);
-                    showAlert('Error selecting all accounts', 'error');
                 });
             }
 
             function deselectAll() {
-                fetch('{{ route('admin.gl-accounts.deselect-all') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json',
+                Swal.fire({
+                    title: 'Deselect All Accounts',
+                    text: 'Are you sure you want to deselect all GL accounts? This will remove all accounts from cash flow reports.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#dc3545',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: 'Yes, deselect all!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch('{{ route('admin.gl-accounts.deselect-all') }}', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showAlert(data.message, 'success');
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                showAlert(data.message || 'Failed to deselect all', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deselecting all:', error);
+                            showAlert('Error deselecting all accounts', 'error');
+                        });
                     }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        showAlert(data.message || 'Failed to deselect all', 'error');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error deselecting all:', error);
-                    showAlert('Error deselecting all accounts', 'error');
                 });
             }
 
@@ -1321,8 +1349,20 @@
             }
 
             function showAlert(message, type = 'info') {
-                console.log(`${type.toUpperCase()}: ${message}`);
-                alert(`${type.toUpperCase()}: ${message}`);
+                const iconMap = {
+                    'success': 'success',
+                    'error': 'error',
+                    'warning': 'warning',
+                    'info': 'info'
+                };
+
+                Swal.fire({
+                    title: type.charAt(0).toUpperCase() + type.slice(1),
+                    text: message,
+                    icon: iconMap[type] || 'info',
+                    confirmButtonText: 'OK',
+                    confirmButtonColor: '#3085d6'
+                });
             }
 
             // Edit Account functionality
@@ -1511,32 +1551,43 @@
                         break;
                 }
 
-                if (confirm(`${title}\n\n${message}\n\nThis action cannot be undone.`)) {
-                    fetch(`{{ route('admin.gl-accounts') }}/${accountId}/remove-parent-child`, {
-                        method: 'POST',
-                        headers: {
-                            'X-CSRF-TOKEN': csrfToken,
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ action: action })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showAlert(data.message, 'success');
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 1000);
-                        } else {
-                            showAlert(data.message || 'Failed to remove relationship', 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error removing relationship:', error);
-                        showAlert('Error removing relationship', 'error');
-                    });
-                }
+                Swal.fire({
+                    title: title,
+                    text: message,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Yes, remove it!',
+                    cancelButtonText: 'Cancel'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch(`{{ route('admin.gl-accounts') }}/${accountId}/remove-parent-child`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': csrfToken,
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ action: action })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                showAlert(data.message, 'success');
+                                setTimeout(() => {
+                                    window.location.reload();
+                                }, 1000);
+                            } else {
+                                showAlert(data.message || 'Failed to remove relationship', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error removing relationship:', error);
+                            showAlert('Error removing relationship', 'error');
+                        });
+                    }
+                });
             }
 
             // Bulk cashflow type update functionality
