@@ -78,16 +78,10 @@
             color: #856404;
         }
 
-        .relationship-status.has-children {
+                .relationship-status.has-children {
             background-color: #d1ecf1;
             border-color: #bee5eb;
             color: #0c5460;
-        }
-
-        .relationship-status.both {
-            background-color: #d4edda;
-            border-color: #c3e6cb;
-            color: #155724;
         }
 
         /* Enhanced dropdown styling */
@@ -220,15 +214,17 @@
                                             <ul class="mb-0 mt-1">
                                                 <li>Groups related accounts together</li>
                                                 <li>Can have multiple child accounts</li>
-                                                <li>Shows in blue background</li>
+                                                <li>Shows "X Children" badge</li>
+                                                <li>Blue background color</li>
                                             </ul>
                                         </div>
                                         <div class="col-md-4">
                                             <strong>👶 Child Account:</strong>
                                             <ul class="mb-0 mt-1">
                                                 <li>Belongs to a parent account</li>
+                                                <li>Shows "Child of [Parent Name]" badge</li>
                                                 <li>Indented with "└─" symbol</li>
-                                                <li>Shows in white background</li>
+                                                <li>White background color</li>
                                             </ul>
                                         </div>
                                         <div class="col-md-4">
@@ -237,6 +233,7 @@
                                                 <li>Better organization</li>
                                                 <li>Cleaner cashflow views</li>
                                                 <li>Easier reporting</li>
+                                                <li>Clear relationship indicators</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -334,17 +331,13 @@
                                                         <span class="badge bg-light text-dark">{{ $account->level }}</span>
                                                         @if($account->parent || $account->children->count() > 0)
                                                             <div class="mt-1">
-                                                                @if($account->parent && $account->children->count() > 0)
-                                                                    <span class="relationship-status both">
-                                                                        <i class="bi bi-diagram-3"></i>Parent & Child
+                                                                @if($account->children->count() > 0)
+                                                                    <span class="relationship-status has-children">
+                                                                        <i class="bi bi-arrow-down"></i>{{ $account->children->count() }} Children
                                                                     </span>
                                                                 @elseif($account->parent)
                                                                     <span class="relationship-status has-parent">
-                                                                        <i class="bi bi-arrow-up"></i>Has Parent
-                                                                    </span>
-                                                                @elseif($account->children->count() > 0)
-                                                                    <span class="relationship-status has-children">
-                                                                        <i class="bi bi-arrow-down"></i>{{ $account->children->count() }} Children
+                                                                        <i class="bi bi-arrow-up"></i>Child of {{ $account->parent->account_name }}
                                                                     </span>
                                                                 @endif
                                                             </div>
@@ -608,17 +601,13 @@
                                                         <span class="badge bg-light text-dark">{{ $account->level }}</span>
                                                         @if($account->parent || $account->children->count() > 0)
                                                             <div class="mt-1">
-                                                                @if($account->parent && $account->children->count() > 0)
-                                                                    <span class="relationship-status both">
-                                                                        <i class="bi bi-diagram-3"></i>Parent & Child
+                                                                @if($account->children->count() > 0)
+                                                                    <span class="relationship-status has-children">
+                                                                        <i class="bi bi-arrow-down"></i>{{ $account->children->count() }} Children
                                                                     </span>
                                                                 @elseif($account->parent)
                                                                     <span class="relationship-status has-parent">
-                                                                        <i class="bi bi-arrow-up"></i>Has Parent
-                                                                    </span>
-                                                                @elseif($account->children->count() > 0)
-                                                                    <span class="relationship-status has-children">
-                                                                        <i class="bi bi-arrow-down"></i>{{ $account->children->count() }} Children
+                                                                        <i class="bi bi-arrow-up"></i>Child of {{ $account->parent->account_name }}
                                                                     </span>
                                                                 @endif
                                                             </div>
@@ -1389,22 +1378,42 @@
 
             // Parent-Child relationship functionality
             document.addEventListener('click', function(e) {
-                if (e.target.closest('.make-parent-btn')) {
-                    const accountId = e.target.closest('.make-parent-btn').dataset.id;
+                // Check if the clicked element is the make-parent button or contains it
+                const makeParentBtn = e.target.closest('.make-parent-btn');
+                if (makeParentBtn) {
+                    e.preventDefault(); // Prevent default link behavior
+                    const accountId = makeParentBtn.dataset.id;
                     loadMakeParentModal(accountId);
-                } else if (e.target.closest('.remove-parent-btn')) {
-                    const accountId = e.target.closest('.remove-parent-btn').dataset.id;
+                    return;
+                }
+
+                // Check other buttons
+                const removeParentBtn = e.target.closest('.remove-parent-btn');
+                if (removeParentBtn) {
+                    e.preventDefault();
+                    const accountId = removeParentBtn.dataset.id;
                     removeParentChild(accountId, 'remove_parent');
-                } else if (e.target.closest('.remove-children-btn')) {
-                    const accountId = e.target.closest('.remove-children-btn').dataset.id;
+                    return;
+                }
+
+                const removeChildrenBtn = e.target.closest('.remove-children-btn');
+                if (removeChildrenBtn) {
+                    e.preventDefault();
+                    const accountId = removeChildrenBtn.dataset.id;
                     removeParentChild(accountId, 'remove_children');
-                } else if (e.target.closest('.remove-all-relationships-btn')) {
-                    const accountId = e.target.closest('.remove-all-relationships-btn').dataset.id;
+                    return;
+                }
+
+                const removeAllBtn = e.target.closest('.remove-all-relationships-btn');
+                if (removeAllBtn) {
+                    e.preventDefault();
+                    const accountId = removeAllBtn.dataset.id;
                     removeParentChild(accountId, 'remove_all');
+                    return;
                 }
             });
 
-                        function loadMakeParentModal(accountId) {
+            function loadMakeParentModal(accountId) {
                 // Get all accounts that could be children
                 fetch('{{ route('admin.gl-accounts.get-accounts') }}', {
                     headers: {
@@ -1412,13 +1421,18 @@
                         'Accept': 'application/json',
                     }
                 })
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
                 .then(data => {
-                    if (data.accounts) {
+                    if (data.success && data.data) {
                         const childSelect = document.getElementById('childAccounts');
                         childSelect.innerHTML = '';
 
-                        data.accounts.forEach(account => {
+                        data.data.forEach(account => {
                             if (account.id != accountId) {
                                 const option = document.createElement('option');
                                 option.value = account.id;

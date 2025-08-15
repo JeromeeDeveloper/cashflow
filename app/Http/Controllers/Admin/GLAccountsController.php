@@ -14,18 +14,23 @@ class GLAccountsController extends Controller
      */
     public function index()
     {
-        $glAccounts = GLAccount::with(['parent', 'children', 'cashflows'])
+        $allAccounts = GLAccount::with(['parent', 'children', 'cashflows'])
             ->orderBy('account_code')
             ->get();
 
+        // Get only parent accounts and standalone accounts (accounts without parents)
+        $glAccounts = $allAccounts->filter(function($account) {
+            return $account->parent_id === null; // Only show accounts without parents in main table
+        });
+
         // Separate selected and unselected accounts
-        $selectedAccounts = $glAccounts->where('is_selected', true);
-        $unselectedAccounts = $glAccounts->where('is_selected', false);
+        $selectedAccounts = $allAccounts->where('is_selected', true);
+        $unselectedAccounts = $allAccounts->where('is_selected', false);
 
         // Group by parent accounts
-        $parentAccounts = $glAccounts->where('account_type', 'parent');
-        $detailAccounts = $glAccounts->where('account_type', 'detail');
-        $summaryAccounts = $glAccounts->where('account_type', 'summary');
+        $parentAccounts = $allAccounts->where('account_type', 'parent');
+        $detailAccounts = $allAccounts->where('account_type', 'detail');
+        $summaryAccounts = $allAccounts->where('account_type', 'summary');
 
         return view('admin.gl-accounts.index', compact(
             'glAccounts',
