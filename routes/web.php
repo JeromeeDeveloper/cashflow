@@ -85,6 +85,7 @@ Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(f
     Route::put('/cashflows/{cashflow}', [HeadCashflowController::class, 'update'])->name('cashflows.update');
     Route::delete('/cashflows/{cashflow}', [HeadCashflowController::class, 'destroy'])->name('cashflows.destroy');
     Route::get('/cashflows/summary', [HeadCashflowController::class, 'getSummary'])->name('cashflows.summary');
+    Route::patch('/cashflows/{cashflow}/projection', [HeadCashflowController::class, 'updateProjectionPercentage'])->name('cashflows.update-projection');
     Route::get('/head/cashflows/export', [HeadCashflowController::class, 'export'])->name('cashflows.export');
 
     // File upload CRUD routes
@@ -109,7 +110,7 @@ Route::prefix('branch')->name('branch.')->middleware(['auth', 'role:branch'])->g
     Route::put('/cashflows/{cashflow}', [BranchCashflowController::class, 'update'])->name('cashflows.update');
     Route::delete('/cashflows/{cashflow}', [BranchCashflowController::class, 'destroy'])->name('cashflows.destroy');
     Route::get('/cashflows/summary', [BranchCashflowController::class, 'getSummary'])->name('cashflows.summary');
-    Route::get('/cashflows/export', [BranchCashflowController::class, 'export'])->name('branch.cashflows.export');
+    Route::get('/branch/cashflows/export', [BranchCashflowController::class, 'export'])->name('branch.cashflows.export');
 
     // Branch File upload routes (branch-scoped)
     Route::get('/files', [BranchFileController::class, 'getFiles'])->name('files.index');

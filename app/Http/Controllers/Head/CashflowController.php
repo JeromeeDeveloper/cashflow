@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 
 class CashflowController extends Controller
 {
@@ -20,11 +21,21 @@ class CashflowController extends Controller
     {
         $branches = Branch::all();
         $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
-            ->whereHas('glAccount', function($query) {
-                $query->where('is_selected', true);
-            })
             ->orderBy('created_at', 'desc')
             ->get();
+
+        // Debug: Log what we're getting
+        Log::info('Head cashflow controller - cashflows found:', [
+            'count' => $cashflows->count(),
+            'sample' => $cashflows->take(3)->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'gl_account_id' => $item->gl_account_id,
+                    'actual_amount' => $item->actual_amount,
+                    'gl_account_name' => $item->glAccount ? $item->glAccount->account_name : 'N/A'
+                ];
+            })->toArray()
+        ]);
 
         return view('head.cashflow', compact('cashflows', 'branches'));
     }
@@ -232,6 +243,35 @@ class CashflowController extends Controller
             'success' => true,
             'data' => $summary
         ]);
+    }
+
+    /**
+     * Update projection percentage for a cashflow entry.
+     */
+    public function updateProjectionPercentage(Request $request, Cashflow $cashflow): JsonResponse
+    {
+        $request->validate([
+            'projection_percentage' => 'required|numeric|min:0|max:100',
+        ]);
+
+        try {
+            $cashflow->update([
+                'projection_percentage' => $request->projection_percentage,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Projection percentage updated successfully',
+                'data' => $cashflow
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update projection percentage',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**

@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/simple-datatables/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/sweetalert2/sweetalert2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.svg') }}" type="image/x-icon">
 </head>
@@ -44,17 +45,18 @@
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <h4 class="mb-0">Cash Flow Summary</h4>
                                 <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <!-- Table Filters -->
                                     <div class="input-group" style="max-width: 280px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
-                                        <input type="month" id="reporting_period" class="form-control" value="{{ date('Y-m') }}">
+                                        <input type="month" id="table_start_period" class="form-control" value="{{ date('Y-m') }}">
                                     </div>
-                                    <select id="branch_filter" class="form-select" style="max-width: 150px;">
+                                    <select id="table_branch_filter" class="form-select" style="max-width: 180px;">
                                         <option value="">All Branches</option>
                                         @foreach($branches as $branch)
                                             <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                         @endforeach
                                     </select>
-                                    <select id="export_period" class="form-select" style="max-width: 150px;">
+                                    <select id="table_period" class="form-select" style="max-width: 150px;">
                                         <option value="3">3 Months</option>
                                         <option value="6">6 Months</option>
                                         <option value="12">12 Months</option>
@@ -62,77 +64,20 @@
                                         <option value="60">5 Years</option>
                                     </select>
 
-                                    <button id="btnAdd" class="btn btn-primary"><i class="bi bi-plus-circle me-2"></i>Add Entry</button>
-                                    <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export</button>
-                                    <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center px-3" data-bs-toggle="tooltip" data-bs-placement="top" title="Using the selected period, the system will generate a consolidated cashflow.">
-                                        <i class="bi bi-lightning-charge-fill text-warning me-2"></i>
-                                        Generates cashflow
-                                    </span>
+
+                                    <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export Cashflow Planning Report</button>
                                 </div>
                             </div>
                             <div class="card-body">
+                                <div class="mb-2 small text-muted" id="selectionSummary"></div>
                                 <div class="table-responsive">
                                     <table class="table table-hover" id="table-cashflow">
-                                        <thead>
-                                            <tr>
-                                                <th>Account Code</th>
-                                                <th>Account Name</th>
-
-                                                <th>Branch</th>
-                                                <th class="text-end">Actual Amount</th>
-                                                <th class="text-end">Projection %</th>
-                                                <th class="text-end">Projected Amount</th>
-                                                <th class="text-end">Total</th>
-                                                <th class="text-end">Actions</th>
-                                            </tr>
+                                        <thead id="cf-thead">
+                                            <!-- Dynamic header will be built by JS to mirror Excel export -->
                                         </thead>
                                         <tbody>
-                                            @forelse($cashflows ?? [] as $cashflow)
-                                                <tr data-id="{{ $cashflow->id }}">
-                                                    <td>{{ $cashflow->glAccount->account_code ?? 'N/A' }}</td>
-                                                    <td>{{ $cashflow->glAccount->account_name ?? $cashflow->account_name ?? 'N/A' }}</td>
-                                                    <td>{{ $cashflow->branch->name ?? 'N/A' }}</td>
-                                                                                                    <td class="text-end">{{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}</td>
-                                                <td class="text-end">{{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) : '0.00' }}%</td>
-                                                <td class="text-end">{{ $cashflow->projected_amount ? number_format($cashflow->projected_amount, 2) : '0.00' }}</td>
-                                                <td class="text-end">{{ $cashflow->total ? number_format($cashflow->total, 2) : '0.00' }}</td>
-                                                    <td class="text-end">
-                                                        <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="{{ $cashflow->id }}"><i class="bi bi-eye"></i></button>
-                                                        <button class="btn btn-sm btn-outline-secondary btn-edit" title="Edit" data-id="{{ $cashflow->id }}"><i class="bi bi-pencil"></i></button>
-                                                        <button class="btn btn-sm btn-outline-danger btn-delete" title="Delete" data-id="{{ $cashflow->id }}"><i class="bi bi-trash"></i></button>
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="10" class="text-center text-muted py-4">
-                                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                                        No cash flow entries found
-                                                    </td>
-                                                </tr>
-                                            @endforelse
+                                            <!-- Table content will be populated dynamically -->
                                         </tbody>
-                                        <tfoot>
-                                            <tr class="table-light">
-                                                <th colspan="8" class="text-end">Total Operating</th>
-                                                <th class="text-end" id="totalOperating">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                            <tr class="table-light">
-                                                <th colspan="8" class="text-end">Total Investing</th>
-                                                <th class="text-end" id="totalInvesting">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                            <tr class="table-light">
-                                                <th colspan="8" class="text-end">Total Financing</th>
-                                                <th class="text-end" id="totalFinancing">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                            <tr class="table-secondary">
-                                                <th colspan="8" class="text-end">Net Cash Flow</th>
-                                                <th class="text-end" id="netCashflow">0.00</th>
-                                                <th></th>
-                                            </tr>
-                                        </tfoot>
                                     </table>
                                 </div>
                             </div>
@@ -324,7 +269,17 @@
     <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
     <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
+    <script src="{{ asset('assets/vendors/sweetalert2/sweetalert2.all.min.js') }}"></script>
     <script src="{{ asset('assets/js/main.js') }}"></script>
+
+    <!-- Pass initial data from controller to JavaScript -->
+    <script>
+        const initialCashflows = @json($cashflows ?? []);
+        const initialBranches = @json($branches ?? []);
+        console.log('Initial cashflows from controller:', initialCashflows);
+        console.log('Initial branches from controller:', initialBranches);
+    </script>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // CSRF token for Laravel
@@ -350,18 +305,15 @@
             // Current editing ID
             let currentEditId = null;
 
-            // Don't auto-load via AJAX - use initial data from controller
-            // loadCashflows();
-            // updateSummary();
+            // Build header and load initial data
+            buildTableHeader();
+            let lastLoadedCashflows = Array.isArray(initialCashflows) ? initialCashflows : [];
+            if (lastLoadedCashflows.length > 0) {
+                updateTable(lastLoadedCashflows);
+            } else {
+                loadCashflows();
+            }
 
-            // Add button
-            document.getElementById('btnAdd').addEventListener('click', function() {
-                currentEditId = null;
-                document.getElementById('cashflowModalLabel').textContent = 'Add Cash Flow Entry';
-                document.getElementById('cashflowForm').reset();
-                document.getElementById('cashflow_id').value = '';
-                cashflowModal.show();
-            });
 
             // Edit buttons
             document.querySelectorAll('.btn-edit').forEach(btn => {
@@ -412,21 +364,64 @@
             document.getElementById('actual_amount').addEventListener('input', calculateAmounts);
             document.getElementById('projection_percentage').addEventListener('input', calculateAmounts);
 
-            // Branch filter
-            document.getElementById('branch_filter').addEventListener('change', function() {
+            // Table filters
+            document.getElementById('table_branch_filter').addEventListener('change', function() {
                 loadCashflows();
             });
-
-            // Month filter
-            document.getElementById('reporting_period').addEventListener('change', function() {
+            document.getElementById('table_start_period').addEventListener('change', function() {
+                buildTableHeader();
                 loadCashflows();
             });
+            document.getElementById('table_period').addEventListener('change', function() {
+                buildTableHeader();
+                if (lastLoadedCashflows.length > 0) updateTable(lastLoadedCashflows);
+            });
 
-
-            // Export button
+            // Export button with SweetAlert
             document.getElementById('btnExport').addEventListener('click', function() {
-                exportCashflows();
+                showExportConfirmation();
             });
+
+            function showExportConfirmation() {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'];
+                const currentMonthValue = document.getElementById('table_start_period').value || '{{ date('Y-m') }}';
+                const [curYear, curMonth] = currentMonthValue.split('-');
+                const currentBranchId = document.getElementById('table_branch_filter').value || '';
+                const currentPeriod = document.getElementById('table_period').value || '3';
+
+                const branches = @json($branches->map(fn($b) => ['id' => $b->id, 'name' => $b->name]));
+                const branchOptions = ['<option value="">All Branches</option>']
+                    .concat(branches.map(b => `<option value="${b.id}" ${String(b.id)===String(currentBranchId)?'selected':''}>${b.name}</option>`))
+                    .join('');
+
+                Swal.fire({
+                    title: 'Export Cash Flow Report',
+                    html: `
+                        <div class="text-start">
+                            <div class="mb-2">Start Period</div>
+                            <input type="month" id="export_start_period" class="form-control" value="${curYear}-${curMonth}">
+                            <div class="mt-3 mb-2">Branch</div>
+                            <select id="export_branch" class="form-select">${branchOptions}</select>
+                            <div class="mt-3 mb-2">Period</div>
+                            <select id="export_period" class="form-select">
+                                <option value="3" ${currentPeriod==='3'?'selected':''}>3 Months</option>
+                                <option value="6" ${currentPeriod==='6'?'selected':''}>6 Months</option>
+                                <option value="12" ${currentPeriod==='12'?'selected':''}>12 Months</option>
+                                <option value="36" ${currentPeriod==='36'?'selected':''}>3 Years</option>
+                                <option value="60" ${currentPeriod==='60'?'selected':''}>5 Years</option>
+                            </select>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="bi bi-download me-2"></i>Export',
+                    cancelButtonText: 'Cancel',
+                    showLoaderOnConfirm: true,
+                    preConfirm: () => exportCashflowsFromModal()
+                });
+            }
 
             function calculateAmounts() {
                 const actualAmount = parseFloat(document.getElementById('actual_amount').value) || 0;
@@ -466,8 +461,8 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            updateTable(data.data);
-                            updateSummary();
+                            lastLoadedCashflows = Array.isArray(data.data) ? data.data : [];
+                            updateTable(lastLoadedCashflows);
                         }
                     })
                     .catch(error => {
@@ -480,10 +475,13 @@
                 const tbody = document.querySelector('#table-cashflow tbody');
                 tbody.innerHTML = '';
 
-                if (cashflows.length === 0) {
+                const period = parseInt(document.getElementById('table_period').value || '3', 10);
+                const { labels } = getPeriodLabels();
+
+                if (!Array.isArray(cashflows) || cashflows.length === 0) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
+                            <td colspan="${4 + period}" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                                 No cash flow entries found
                             </td>
@@ -492,30 +490,166 @@
                     return;
                 }
 
-                cashflows.forEach(cashflow => {
-                    const row = document.createElement('tr');
-                    row.setAttribute('data-id', cashflow.id);
-                    row.innerHTML = `
-                        <td>${cashflow.account_code || 'N/A'}</td>
-                        <td>${cashflow.account_name || 'N/A'}</td>
-                        <td>${getAccountTypeBadge(cashflow.account_type)}</td>
-                        <td>${getCategoryBadge(cashflow.cashflow_category)}</td>
-                        <td>${cashflow.branch?.name || 'N/A'}</td>
-                        <td class="text-end">${formatNumber(cashflow.actual_amount)}</td>
-                        <td class="text-end">${formatNumber(cashflow.projection_percentage)}%</td>
-                        <td class="text-end">${formatNumber(cashflow.projected_amount)}</td>
-                        <td class="text-end">${formatNumber(cashflow.total)}</td>
-                        <td class="text-end">
-                            <button class="btn btn-sm btn-outline-primary btn-view" title="View Details" data-id="${cashflow.id}"><i class="bi bi-eye"></i></button>
-                            <button class="btn btn-sm btn-outline-secondary btn-edit" title="Edit" data-id="${cashflow.id}"><i class="bi bi-pencil"></i></button>
-                            <button class="btn btn-sm btn-outline-danger btn-delete" title="Delete" data-id="${cashflow.id}"><i class="bi bi-trash"></i></button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
+                // Split by type
+                const receipts = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'receipts');
+                const disbursements = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'disbursements');
+
+                // Beginning balance = sum of all receipts actual_amount
+                const beginningBalance = receipts.reduce((sum, c) => sum + (parseFloat(c.actual_amount) || 0), 0);
+
+                // Helper to build a row
+                const makeRow = (cells) => `<tr>${cells.join('')}</tr>`;
+                const th = (content, extra='') => `<th ${extra}>${content}</th>`;
+                const td = (content, cls='') => `<td class="${cls}">${content}</td>`;
+
+                // Row: CASH BEGINNING BALANCE
+                const beginningCells = [
+                    td('CASH BEGINNING BALANCE'),
+                    td(formatNumber(beginningBalance), 'text-end'),
+                    td('-', 'text-end')
+                ];
+                for (let i = 0; i < period; i++) beginningCells.push(td(formatNumber(beginningBalance), 'text-end'));
+                beginningCells.push(td(formatNumber(beginningBalance * period), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(beginningCells));
+
+                // Section: ADD: RECEIPTS
+                const sectionEmpty = new Array(period + 3).fill(td('-', 'text-end')).join('');
+                tbody.insertAdjacentHTML('beforeend', makeRow([
+                    td('ADD: RECEIPTS'),
+                    td('-', 'text-end'),
+                    td('-', 'text-end'),
+                    ...Array.from({length: period}, () => td('-', 'text-end')),
+                    td('-', 'text-end')
+                ]));
+
+                // Totals per period
+                const receiptsTotals = Array.from({length: period}, () => 0);
+                let receiptsGrand = 0;
+
+                // Receipt rows
+                receipts.forEach(c => {
+                    const name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
+                    const actual = parseFloat(c.actual_amount) || 0;
+                    const proj = parseFloat(c.projection_percentage) || 0;
+                    const inputsCell = `<input type="number" class="form-control form-control-sm text-end projection-input" value="${proj}" min="0" max="100" step="0.01" data-id="${c.id}" style="width: 80px;">`;
+
+                    const projections = [];
+                    let current = actual;
+                    for (let i = 0; i < period; i++) {
+                        current = current * (1 + (proj / 100));
+                        projections.push(current);
+                        receiptsTotals[i] += current;
+                    }
+                    const sumProj = projections.reduce((a,b) => a+b, 0);
+                    receiptsGrand += sumProj;
+
+                    const cells = [
+                        td(name),
+                        td(formatNumber(actual), 'text-end'),
+                        td(inputsCell, 'text-end')
+                    ];
+                    projections.forEach(v => cells.push(td(formatNumber(v), 'text-end')));
+                    cells.push(td(formatNumber(sumProj), 'text-end'));
+                    tbody.insertAdjacentHTML('beforeend', makeRow(cells));
                 });
 
-                // Re-attach event listeners
+                // TOTAL CASH AVAILABLE
+                const tcaCells = [ td('TOTAL CASH AVAILABLE'), td(formatNumber(beginningBalance), 'text-end'), td('-', 'text-end') ];
+                for (let i = 0; i < period; i++) tcaCells.push(td(formatNumber(beginningBalance + receiptsTotals[i]), 'text-end'));
+                tcaCells.push(td(formatNumber(beginningBalance * period + receiptsGrand), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(tcaCells));
+
+                // Section: LESS: DISBURSEMENTS
+                tbody.insertAdjacentHTML('beforeend', makeRow([
+                    td('LESS: DISBURSEMENTS'),
+                    td('-', 'text-end'),
+                    td('-', 'text-end'),
+                    ...Array.from({length: period}, () => td('-', 'text-end')),
+                    td('-', 'text-end')
+                ]));
+
+                const disbTotals = Array.from({length: period}, () => 0);
+                let disbGrand = 0;
+
+                disbursements.forEach(c => {
+                    const name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
+                    const actual = parseFloat(c.actual_amount) || 0;
+                    const proj = parseFloat(c.projection_percentage) || 0;
+                    const inputsCell = `<input type=\"number\" class=\"form-control form-control-sm text-end projection-input\" value=\"${proj}\" min=\"0\" max=\"100\" step=\"0.01\" data-id=\"${c.id}\" style=\"width: 80px;\">`;
+
+                    const projections = [];
+                    let current = actual;
+                    for (let i = 0; i < period; i++) {
+                        current = current * (1 + (proj / 100));
+                        projections.push(current);
+                        disbTotals[i] += current;
+                    }
+                    const sumProj = projections.reduce((a,b) => a+b, 0);
+                    disbGrand += sumProj;
+
+                    const cells = [
+                        td(name),
+                        td(formatNumber(actual), 'text-end'),
+                        td(inputsCell, 'text-end')
+                    ];
+                    projections.forEach(v => cells.push(td(formatNumber(v), 'text-end')));
+                    cells.push(td(formatNumber(sumProj), 'text-end'));
+                    tbody.insertAdjacentHTML('beforeend', makeRow(cells));
+                });
+
+                // TOTAL DISBURSEMENTS
+                const tdCells = [ td('TOTAL DISBURSEMENTS'), td(formatNumber(disbursements.reduce((s, c) => s + (parseFloat(c.actual_amount)||0), 0)), 'text-end'), td('-', 'text-end') ];
+                for (let i = 0; i < period; i++) tdCells.push(td(formatNumber(disbTotals[i]), 'text-end'));
+                tdCells.push(td(formatNumber(disbGrand), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(tdCells));
+
+                // CASH ENDING BALANCE (mirror export formula)
+                const cebCells = [ td('CASH ENDING BALANCE'), td(formatNumber(beginningBalance), 'text-end'), td('-', 'text-end') ];
+                for (let i = 0; i < period; i++) {
+                    const value = beginningBalance + (beginningBalance + receiptsTotals[i]) - disbTotals[i];
+                    cebCells.push(td(formatNumber(value), 'text-end'));
+                }
+                const cebTotal = (beginningBalance * period) + ((beginningBalance * period) + receiptsGrand) - disbGrand;
+                cebCells.push(td(formatNumber(cebTotal), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(cebCells));
+
+                // Attach listeners for dynamic elements
                 attachEventListeners();
+            }
+
+            function getPeriodLabels() {
+                const monthInput = document.getElementById('table_start_period');
+                const exportPeriod = document.getElementById('table_period');
+                const [yearStr, monthStr] = (monthInput.value || '').split('-');
+                const period = parseInt(exportPeriod.value || '3', 10);
+                const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                const startIndex = Math.max(0, (parseInt(monthStr, 10) || 1) - 1);
+                const labels = [];
+                for (let i = 0; i < period; i++) labels.push(months[(startIndex + i) % 12]);
+                const selectedLabel = months[startIndex];
+                return { labels, selectedLabel };
+            }
+
+            function buildTableHeader() {
+                const thead = document.getElementById('cf-thead');
+                const exportPeriod = parseInt(document.getElementById('table_period').value || '3', 10);
+                const { labels, selectedLabel } = getPeriodLabels();
+
+                const topRow = document.createElement('tr');
+                topRow.innerHTML = `
+                    <th rowspan="2">PARTICULARS</th>
+                    <th rowspan="2" class="text-end">ACTUAL</th>
+                    <th rowspan="2" class="text-end">PROJECTION %</th>
+                    <th colspan="${exportPeriod}" class="text-center">CASH PROJECTION/PLAN</th>
+                    <th rowspan="2" class="text-end">TOTAL</th>
+                `;
+
+                const secondRow = document.createElement('tr');
+                secondRow.innerHTML = labels.map(l => `<th class="text-end">${l}</th>`).join('');
+
+                thead.innerHTML = '';
+                thead.appendChild(topRow);
+                thead.appendChild(secondRow);
             }
 
             function attachEventListeners() {
@@ -546,6 +680,49 @@
                         currentEditId = id;
                         deleteModal.show();
                     });
+                });
+
+                // Projection input changes
+                document.querySelectorAll('.projection-input').forEach(input => {
+                    input.addEventListener('change', function() {
+                        const id = this.getAttribute('data-id');
+                        const newValue = parseFloat(this.value) || 0;
+                        updateProjectionPercentage(id, newValue);
+                    });
+                });
+            }
+
+            function updateProjectionPercentage(id, newValue) {
+                fetch(`{{ route('head.cashflows.update-projection', ':id') }}`.replace(':id', id), {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        projection_percentage: newValue
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Reload the table to show updated values
+                        loadCashflows();
+                        Swal.fire({
+                            title: 'Success!',
+                            text: 'Projection percentage updated successfully',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    } else {
+                        showAlert(data.message || 'Failed to update projection percentage', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error updating projection percentage:', error);
+                    showAlert('Error updating projection percentage', 'error');
                 });
             }
 
@@ -676,63 +853,23 @@
                 });
             }
 
-            function updateSummary() {
-                const monthInput = document.getElementById('reporting_period');
-                const branchFilter = document.getElementById('branch_filter');
-
-                const [year, month] = monthInput.value.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
-
-                const params = new URLSearchParams({
-                    year: year,
-                    month: monthNames[parseInt(month) - 1],
-                    branch_id: branchFilter.value
-                });
-
-                fetch(`{{ route('head.cashflows.summary') }}?${params}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            const summary = data.data;
-                            document.getElementById('totalOperating').textContent = formatNumber(summary.total_operating);
-                            document.getElementById('totalInvesting').textContent = formatNumber(summary.total_investing);
-                            document.getElementById('totalFinancing').textContent = formatNumber(summary.total_financing);
-                            document.getElementById('netCashflow').textContent = formatNumber(summary.net_cashflow);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading summary:', error);
-                    });
-            }
-
-            function exportCashflows() {
-                const monthInput = document.getElementById('reporting_period');
-                const branchFilter = document.getElementById('branch_filter');
-                const exportPeriod = document.getElementById('export_period');
-
-                const [year, month] = monthInput.value.split('-');
-                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                                  'July', 'August', 'September', 'October', 'November', 'December'];
+            function exportCashflowsFromModal() {
+                const monthStr = (document.getElementById('export_start_period').value || '{{ date('Y-m') }}');
+                const [year, month] = monthStr.split('-');
+                const branchId = (document.getElementById('export_branch').value || '');
+                const periodValue = (document.getElementById('export_period').value || '3');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'];
 
                 const params = new URLSearchParams({
                     year: year,
                     month: monthNames[parseInt(month) - 1],
-                    branch_id: branchFilter.value,
-                    period: exportPeriod.value
+                    branch_id: branchId,
+                    period: periodValue
                 });
 
-                // Show loading state
-                const exportBtn = document.getElementById('btnExport');
-                const originalText = exportBtn.innerHTML;
-                exportBtn.disabled = true;
-                exportBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Exporting...';
-
-                                // Create download link
                 const downloadUrl = `{{ route('head.cashflows.export') }}?${params}`;
 
-                // Use fetch to trigger the download
-                fetch(downloadUrl)
+                return fetch(downloadUrl)
                     .then(response => {
                         if (response.ok) {
                             return response.blob();
@@ -745,9 +882,8 @@
                         const link = document.createElement('a');
                         link.href = url;
 
-                        // Create filename based on selected period
-                        const periodValue = parseInt(exportPeriod.value);
-                        const periodText = periodValue <= 12 ? `${periodValue}months` : `${periodValue}years`;
+                        const pVal = parseInt(periodValue);
+                        const periodText = pVal <= 12 ? `${pVal}months` : `${pVal}years`;
                         link.download = `cashflow_${monthNames[parseInt(month) - 1]}_${year}_${periodText}.xlsx`;
 
                         document.body.appendChild(link);
@@ -756,38 +892,24 @@
 
                         // Clean up blob URL
                         window.URL.revokeObjectURL(url);
+
+                        // Show success message
+                        return Swal.fire({
+                            title: 'Export Successful!',
+                            text: 'Your cash flow report has been downloaded.',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
                     })
                     .catch(error => {
                         console.error('Export error:', error);
-                        showAlert('Export failed. Please try again.', 'error');
+                        return Swal.fire({
+                            title: 'Export Failed',
+                            text: 'There was an error generating the export. Please try again.',
+                            icon: 'error'
+                        });
                     });
-
-                // Reset button state
-                setTimeout(() => {
-                    exportBtn.disabled = false;
-                    exportBtn.innerHTML = originalText;
-                    showAlert('Export completed successfully!', 'success');
-                }, 1000);
-            }
-
-            function getAccountTypeBadge(type) {
-                const badges = {
-                    'Asset': '<span class="badge bg-primary">Asset</span>',
-                    'Liability': '<span class="badge bg-danger">Liability</span>',
-                    'Equity': '<span class="badge bg-success">Equity</span>',
-                    'Income': '<span class="badge bg-info">Income</span>',
-                    'Expense': '<span class="badge bg-warning text-dark">Expense</span>'
-                };
-                return badges[type] || `<span class="badge bg-secondary">${type}</span>`;
-            }
-
-            function getCategoryBadge(category) {
-                const badges = {
-                    'Operating': '<span class="badge bg-info text-dark">Operating</span>',
-                    'Investing': '<span class="badge bg-warning text-dark">Investing</span>',
-                    'Financing': '<span class="badge bg-success">Financing</span>'
-                };
-                return badges[category] || `<span class="badge bg-secondary">${category}</span>`;
             }
 
             function formatNumber(number) {
@@ -798,8 +920,13 @@
             }
 
             function showAlert(message, type = 'info') {
-                console.log(`${type.toUpperCase()}: ${message}`);
-                alert(`${type.toUpperCase()}: ${message}`);
+                Swal.fire({
+                    title: type.charAt(0).toUpperCase() + type.slice(1),
+                    text: message,
+                    icon: type,
+                    timer: type === 'success' ? 2000 : undefined,
+                    showConfirmButton: type !== 'success'
+                });
             }
         });
     </script>

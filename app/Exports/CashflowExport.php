@@ -225,11 +225,13 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $actual = (float) ($cashflow->actual_amount ?? 0);
                 $projection = (float) ($cashflow->projection_percentage ?? 0);
 
-                // Calculate projections
+                // Calculate projections with compounding
                 $projections = [];
                 $currentValue = $actual;
 
                 for ($i = 1; $i <= $this->period; $i++) {
+                    // Formula: Previous month value * (1 + projection_percentage/100)
+                    // This creates compounding growth where each month builds on the previous month
                     $currentValue = $currentValue * (1 + ($projection / 100));
                     $projections[] = $currentValue;
                     $receiptsTotal[$i] += $currentValue;
@@ -271,6 +273,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                             $childCurrentValue = $childActual;
 
                             for ($i = 1; $i <= $this->period; $i++) {
+                                // Formula: Previous month value * (1 + projection_percentage/100)
                                 $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
                                 $childProjections[] = $childCurrentValue;
                                 $receiptsTotal[$i] += $childCurrentValue;
@@ -350,11 +353,13 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $actual = (float) ($cashflow->actual_amount ?? 0);
                 $projection = (float) ($cashflow->projection_percentage ?? 0);
 
-                // Calculate projections
+                // Calculate projections with compounding
                 $projections = [];
                 $currentValue = $actual;
 
                 for ($i = 1; $i <= $this->period; $i++) {
+                    // Formula: Previous month value * (1 + projection_percentage/100)
+                    // This creates compounding growth where each month builds on the previous month
                     $currentValue = $currentValue * (1 + ($projection / 100));
                     $projections[] = $currentValue;
                     $disbursementsTotal[$i] += $currentValue;
@@ -396,6 +401,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                             $childCurrentValue = $childActual;
 
                             for ($i = 1; $i <= $this->period; $i++) {
+                                // Formula: Previous month value * (1 + projection_percentage/100)
                                 $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
                                 $childProjections[] = $childCurrentValue;
                                 $disbursementsTotal[$i] += $childCurrentValue;
