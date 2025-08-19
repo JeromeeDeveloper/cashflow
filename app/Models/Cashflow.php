@@ -14,6 +14,7 @@ class Cashflow extends Model
         'cashflow_file_id',
         'branch_id',
         'gl_account_id',
+        'cashflow_type',
         'section',
         'year',
         'month',

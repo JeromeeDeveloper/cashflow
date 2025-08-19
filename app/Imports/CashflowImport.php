@@ -130,7 +130,7 @@ class CashflowImport implements ToCollection, WithStartRow
                 Log::info("Processing child account: Code='{$accountCode}', Name='{$accountName}'");
 
                 // Find or create GL account (this will handle hierarchical structure)
-                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, 'child');
+                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, 'child', $currentSection === 'receipts' ? 'receipts' : 'disbursements');
 
                 Log::info("Child GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
 
@@ -143,7 +143,7 @@ class CashflowImport implements ToCollection, WithStartRow
                 Log::info("Processing parent account: Code='{$accountCode}', Name='{$accountName}'");
 
                 // Find or create GL account (this will handle hierarchical structure)
-                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, 'parent');
+                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, 'parent', $currentSection === 'receipts' ? 'receipts' : 'disbursements');
 
                 Log::info("Parent GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
 
@@ -158,15 +158,24 @@ class CashflowImport implements ToCollection, WithStartRow
                 Log::info("Processing single account: Code='{$accountCode}', Name='{$accountName}', Amount='{$amount}', Section='{$currentSection}'");
 
                 // Find or create GL account using account code and name
-                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, $accountType);
+                $glAccount = $this->findOrCreateGLAccount($accountCode, $accountName, $accountType, $currentSection === 'receipts' ? 'receipts' : 'disbursements');
 
                 Log::info("Single GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
+
+                // Determine cashflow type based on current section
+                $cashflowType = 'disbursements'; // default
+                if ($currentSection === 'receipts') {
+                    $cashflowType = 'receipts';
+                } elseif ($currentSection === 'disbursements') {
+                    $cashflowType = 'disbursements';
+                }
 
                 $cashflowData['products'][] = [
                     'gl_account_id' => $glAccount->id,
                     'account_name' => $accountName,
                     'actual_amount' => $amount,
-                    'section' => $currentSection
+                    'section' => $currentSection,
+                    'cashflow_type' => $cashflowType
                 ];
 
                 Log::info("Added product to array: " . json_encode(end($cashflowData['products'])));
@@ -186,14 +195,14 @@ class CashflowImport implements ToCollection, WithStartRow
     /**
      * Find existing GL account by code/name or create new one with hierarchical support
      */
-    private function findOrCreateGLAccount($accountCode, $accountName, $accountType = null)
+    private function findOrCreateGLAccount($accountCode, $accountName, $accountType = null, $cashflowType = null)
     {
         // Handle child accounts (those starting with >)
         if (str_starts_with(trim($accountName), '>')) {
-            return $this->handleChildAccount($accountCode, $accountName);
+            return $this->handleChildAccount($accountCode, $accountName, $cashflowType);
         }
 
-        // First try to find by account code (exact match)
+        // First try to find by account code (exact match) - this is the primary identifier
         if (!empty($accountCode)) {
             $glAccount = GLAccount::where('account_code', $accountCode)->first();
             if ($glAccount) {
@@ -201,30 +210,12 @@ class CashflowImport implements ToCollection, WithStartRow
             }
         }
 
-        // Try to find existing GL account by name (exact match first)
-        $glAccount = GLAccount::where('account_name', $accountName)->first();
-        if ($glAccount) {
-            return $glAccount;
-        }
-
-        // Try partial name match
-        $glAccount = GLAccount::where('account_name', 'LIKE', '%' . $accountName . '%')
-            ->orWhere('account_name', 'LIKE', '%' . strtoupper($accountName) . '%')
-            ->first();
-
-        if ($glAccount) {
-            return $glAccount;
-        }
-
-        // Try partial match with words
-        $words = explode(' ', strtoupper($accountName));
-        foreach ($words as $word) {
-            if (strlen($word) > 3) { // Only search for words longer than 3 characters
-                $glAccount = GLAccount::where('account_name', 'LIKE', '%' . $word . '%')
-                    ->first();
-                if ($glAccount) {
-                    return $glAccount;
-                }
+        // Only if no account code is provided, try to find by name
+        // But be more strict - only exact name matches to avoid duplicates
+        if (empty($accountCode)) {
+            $glAccount = GLAccount::where('account_name', $accountName)->first();
+            if ($glAccount) {
+                return $glAccount;
             }
         }
 
@@ -252,6 +243,7 @@ class CashflowImport implements ToCollection, WithStartRow
             'account_name' => $accountName,
             'account_type' => $accountType,
             'level' => $level,
+            'cashflow_type' => $cashflowType ?? 'disbursements', // Set cashflow type based on section
         ]);
 
         return $glAccount;
@@ -260,7 +252,7 @@ class CashflowImport implements ToCollection, WithStartRow
     /**
      * Handle child account creation (e.g., "> Principal")
      */
-    private function handleChildAccount($accountCode, $accountName)
+    private function handleChildAccount($accountCode, $accountName, $cashflowType = null)
     {
         Log::info("Processing child account: '{$accountName}'");
 
@@ -274,9 +266,10 @@ class CashflowImport implements ToCollection, WithStartRow
 
         Log::info("Cleaned child name: '{$childName}'");
 
-        // Try to find existing child account
+        // Try to find existing child account with same cashflow type
         $childAccount = GLAccount::where('account_name', $childName)
             ->where('account_type', 'child')
+            ->where('cashflow_type', $cashflowType ?? 'disbursements')
             ->first();
 
         if ($childAccount) {
@@ -295,6 +288,7 @@ class CashflowImport implements ToCollection, WithStartRow
             'account_type' => 'child',
             'level' => 1,
             'parent_id' => null, // Will be updated when parent is found
+            'cashflow_type' => $cashflowType ?? 'disbursements', // Inherit cashflow type from parent section
         ]);
 
         Log::info("Created child account: ID={$childAccount->id}, Name='{$childAccount->account_name}'");
@@ -366,6 +360,8 @@ class CashflowImport implements ToCollection, WithStartRow
 
             // If this is a parent account (has children below or ends with colon)
             if ($this->determineAccountType($rows, $index) === 'parent') {
+                // For now, we'll find parent accounts without cashflow_type filter
+                // since the relationship update happens after all accounts are created
                 $currentParent = GLAccount::where('account_name', $accountName)
                     ->where('account_type', 'parent')
                     ->first();
@@ -383,9 +379,10 @@ class CashflowImport implements ToCollection, WithStartRow
                 Log::info("Processing child account: '{$childName}'");
 
                 if ($currentParent) {
-                    // Update child account with parent_id
+                    // Update child account with parent_id - find child with matching cashflow_type
                     $childAccount = GLAccount::where('account_name', $childName)
                         ->where('account_type', 'child')
+                        ->where('cashflow_type', $currentParent->cashflow_type)
                         ->first();
 
                     if ($childAccount) {
@@ -733,6 +730,7 @@ class CashflowImport implements ToCollection, WithStartRow
                         'cashflow_file_id' => $this->cashflowFile->id,
                         'branch_id' => $this->branchId,
                         'gl_account_id' => $product['gl_account_id'],
+                        'cashflow_type' => $product['cashflow_type'],
                         'section' => $product['section'], // Add section field
                         'year' => $this->year,
                         'month' => $this->month,
@@ -743,7 +741,8 @@ class CashflowImport implements ToCollection, WithStartRow
                         'period_values' => json_encode([
                             'section' => $product['section'],
                             'amount' => $product['actual_amount'],
-                            'gl_account_id' => $product['gl_account_id']
+                            'gl_account_id' => $product['gl_account_id'],
+                            'cashflow_type' => $product['cashflow_type']
                         ]),
                         'total' => $product['actual_amount'],
                         'cash_beginning_balance' => null,
