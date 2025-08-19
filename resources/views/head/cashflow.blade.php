@@ -291,11 +291,7 @@
                 new bootstrap.Tooltip(tooltipTriggerEl);
             });
 
-            // Initialize DataTable
-            const cashflowTable = document.querySelector('#table-cashflow');
-            if (cashflowTable && window.simpleDatatables) {
-                new simpleDatatables.DataTable(cashflowTable);
-            }
+            // Do not initialize DataTable to avoid DOM sync issues on dynamic rebuilds
 
             // Modal instances
             const cashflowModal = new bootstrap.Modal(document.getElementById('cashflowModal'));
@@ -444,8 +440,8 @@
             }
 
             function loadCashflows() {
-                const monthInput = document.getElementById('reporting_period');
-                const branchFilter = document.getElementById('branch_filter');
+                const monthInput = document.getElementById('table_start_period');
+                const branchFilter = document.getElementById('table_branch_filter');
 
                 const [year, month] = monthInput.value.split('-');
                 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -693,7 +689,7 @@
             }
 
             function updateProjectionPercentage(id, newValue) {
-                fetch(`{{ route('head.cashflows.update-projection', ':id') }}`.replace(':id', id), {
+                fetch(`{{ url('head/cashflows') }}/${id}/projection`, {
                     method: 'PATCH',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
@@ -707,15 +703,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Reload the table to show updated values
-                        loadCashflows();
-                        Swal.fire({
-                            title: 'Success!',
-                            text: 'Projection percentage updated successfully',
-                            icon: 'success',
-                            timer: 1500,
-                            showConfirmButton: false
-                        });
+                        window.location.reload();
                     } else {
                         showAlert(data.message || 'Failed to update projection percentage', 'error');
                     }
