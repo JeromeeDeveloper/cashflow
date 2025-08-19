@@ -39,9 +39,7 @@
                     <button id="btnAdd" class="btn btn-primary">
                         <i class="bi bi-person-plus me-2"></i>Add New User
                     </button>
-                    <button id="btnExport" class="btn btn-success">
-                        <i class="bi bi-download me-2"></i>Export Users
-                    </button>
+                   
                 </div>
             </div>
 

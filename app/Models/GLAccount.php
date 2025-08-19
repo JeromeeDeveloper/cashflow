@@ -109,20 +109,22 @@ class GLAccount extends Model
     /**
      * Get the account type for cashflow categorization (receipts/disbursements).
      */
-    public function getCashflowTypeAttribute(): string
+    public function getCashflowTypeAttribute($value): string
     {
-        // Determine if this account is typically for receipts or disbursements
-        // based on account type and name patterns
+        // If explicitly set in DB, always honor it
+        if (!is_null($value) && $value !== '') {
+            return $value;
+        }
+
+        // Otherwise, infer based on name/code patterns as a fallback
         $accountName = strtolower($this->account_name ?? '');
         $accountCode = strtolower($this->account_code ?? '');
 
-        // Receipts patterns
         $receiptPatterns = [
             'income', 'revenue', 'collection', 'receipt', 'payment', 'loan', 'interest',
             'fee', 'commission', 'sale', 'rent', 'dividend', 'refund'
         ];
 
-        // Disbursements patterns
         $disbursementPatterns = [
             'expense', 'cost', 'payment', 'disbursement', 'outlay', 'expenditure',
             'purchase', 'salary', 'rent', 'utility', 'maintenance', 'repair'
@@ -140,8 +142,8 @@ class GLAccount extends Model
             }
         }
 
-        // Default based on account type
-        return in_array($this->account_type, ['Income', 'Asset']) ? 'receipts' : 'disbursements';
+        // Final fallback
+        return 'disbursements';
     }
 
     /**

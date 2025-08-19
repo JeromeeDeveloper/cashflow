@@ -346,6 +346,9 @@
                         <div class="card">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <h4 class="mb-0">All GL Accounts</h4>
+                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccountModal">
+                                    <i class="bi bi-plus-circle me-2"></i>Add GL Account
+                                </button>
                                 <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
                                     <!-- Search -->
                                     <div class="input-group" style="max-width: 300px;">
@@ -357,7 +360,7 @@
                                     <select id="accountTypeFilter" class="form-select" style="max-width: 150px;">
                                         <option value="">All Types</option>
                                         <option value="parent">Parent</option>
-
+                                        <option value="single">Single</option>
                                         <option value="child">Child</option>
                                     </select>
 
@@ -376,15 +379,17 @@
                                     <!-- Bulk Actions -->
                                     <div class="btn-group" role="group">
                                         <button type="button" class="btn btn-success" id="btnSelectAll">
-                                            <i class="bi bi-check-all me-2"></i>Select ALL GL Accounts
+                                            <i class="bi bi-check-all me-2"></i>Select all GL Accounts
                                         </button>
-
+                                        <button type="button" class="btn btn-primary" id="btnMarkSelected">
+                                            <i class="bi bi-check2-circle me-2"></i>Mark as Selected
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" id="btnMarkUnselected">
+                                            <i class="bi bi-x-circle me-2"></i>Mark as Not Selected
+                                        </button>
                                     </div>
 
-                                    <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center px-3" data-bs-toggle="tooltip" data-bs-placement="top" title="Selected accounts will be available in cashflow views">
-                                        <i class="bi bi-info-circle text-info me-2"></i>
-                                        Selection affects cashflow
-                                    </span>
+
                                 </div>
                             </div>
                             <div class="card-body">
@@ -437,9 +442,9 @@
                                                     </td>
                                                     <td>
                                                         @php
-                                                            $cashflowType = $account->cashflow_type ?? 'disbursements';
+                                                            $cashflowType = $account->cashflow_type ?? null;
                                                             $actualType = $account->getMostCommonCashflowType();
-                                                            $displayType = $actualType ?: $cashflowType;
+                                                            $displayType = $cashflowType ?: ($actualType ?: 'disbursements');
                                                         @endphp
                                                         @if($displayType === 'receipts')
                                                             <span class="badge bg-success">Receipts</span>
@@ -506,10 +511,13 @@
                                                                 <span class="ms-1">Relationships</span>
                                                             </button>
                                                             <ul class="dropdown-menu">
-                                                                <li><h6 class="dropdown-header">Make Parent</h6></li>
-                                                                <li><a class="dropdown-item make-parent-btn" href="#" data-id="{{ $account->id }}">
-                                                                    <i class="bi bi-plus-circle text-success me-2"></i>Make This Account a Parent
-                                                                </a></li>
+                                                                <li><h6 class="dropdown-header">Parenting</h6></li>
+                                                                <li>
+                                                                    <a class="dropdown-item make-parent-btn" href="#" data-id="{{ $account->id }}">
+                                                                        <i class="bi bi-plus-circle text-success me-2"></i>
+                                                                        {{ $account->children->count() > 0 || $account->account_type === 'parent' ? 'Add Additional Children' : 'Make This Account a Parent' }}
+                                                                    </a>
+                                                                </li>
                                                                 <li><hr class="dropdown-divider"></li>
                                                                 @if($account->parent)
                                                                     <li><h6 class="dropdown-header">Current Parent</h6></li>
@@ -559,9 +567,9 @@
                                                             </td>
                                                             <td>
                                                                 @php
-                                                                    $childCashflowType = $child->cashflow_type ?? 'disbursements';
+                                                                    $childCashflowType = $child->cashflow_type ?? null;
                                                                     $childActualType = $child->getMostCommonCashflowType();
-                                                                    $childDisplayType = $childActualType ?: $childCashflowType;
+                                                                    $childDisplayType = $childCashflowType ?: ($childActualType ?: 'disbursements');
                                                                 @endphp
                                                                 @if($childDisplayType === 'receipts')
                                                                     <span class="badge bg-success">Receipts</span>
@@ -659,7 +667,13 @@
                                             </tr>
                                         </thead>
                                         <tbody>
+                                            @php
+                                                $selectedIds = $selectedAccounts->pluck('id')->toArray();
+                                            @endphp
                                             @forelse($selectedAccounts as $account)
+                                                @if($account->parent_id && in_array($account->parent_id, $selectedIds))
+                                                    @continue
+                                                @endif
                                                 <tr class="selected-account-row {{ $account->parent_id ? 'child-account' : 'parent-account' }}"
                                                     data-id="{{ $account->id }}"
                                                     data-order="{{ $loop->index }}"
@@ -697,9 +711,9 @@
                                                     </td>
                                                     <td>
                                                         @php
-                                                            $cashflowType = $account->cashflow_type ?? 'disbursements';
+                                                            $cashflowType = $account->cashflow_type ?? null;
                                                             $actualType = $account->getMostCommonCashflowType();
-                                                            $displayType = $actualType ?: $cashflowType;
+                                                            $displayType = $cashflowType ?: ($actualType ?: 'disbursements');
                                                         @endphp
                                                         @if($displayType === 'receipts')
                                                             <span class="badge bg-success">Receipts</span>
@@ -830,6 +844,57 @@
                 </section>
             </div>
 
+            <!-- Add Account Modal -->
+            <div class="modal fade" id="addAccountModal" tabindex="-1" aria-labelledby="addAccountModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="addAccountModalLabel">Add GL Account</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form id="addAccountForm">
+                            <div class="modal-body">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="add_account_code" class="form-label">Account Code <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="add_account_code" name="account_code" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="add_account_name" class="form-label">Account Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="add_account_name" name="account_name" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="add_cashflow_type" class="form-label">Cashflow Type <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="add_cashflow_type" name="cashflow_type" required>
+                                            <option value="receipts">Receipts</option>
+                                            <option value="disbursements">Disbursements</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Status</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="add_is_active" name="is_active" checked>
+                                            <label class="form-check-label" for="add_is_active">Active</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label">Selection Status</label>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" id="add_is_selected" name="is_selected">
+                                            <label class="form-check-label" for="add_is_selected">Selected for Cashflow</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Create Account</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             <!-- View Account Details Modal -->
             <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -908,14 +973,7 @@
                                         <label for="edit_account_name" class="form-label">Account Name <span class="text-danger">*</span></label>
                                         <input type="text" class="form-control" id="edit_account_name" name="account_name" required>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label for="edit_account_type" class="form-label">Account Type <span class="text-danger">*</span></label>
-                                        <select class="form-select" id="edit_account_type" name="account_type" required>
-                                            <option value="parent">Parent</option>
 
-                                            <option value="child">Child</option>
-                                        </select>
-                                    </div>
                                     <div class="col-md-6">
                                         <label for="edit_cashflow_type" class="form-label">Cashflow Type <span class="text-danger">*</span></label>
                                         <select class="form-select" id="edit_cashflow_type" name="cashflow_type" required>
@@ -923,12 +981,7 @@
                                             <option value="disbursements">Disbursements</option>
                                         </select>
                                     </div>
-                                    <div class="col-md-6">
-                                        <label for="edit_parent_id" class="form-label">Parent Account</label>
-                                        <select class="form-select" id="edit_parent_id" name="parent_id">
-                                            <option value="">No Parent</option>
-                                        </select>
-                                    </div>
+
                                     <div class="col-md-6">
                                         <label for="edit_is_active" class="form-label">Status</label>
                                         <div class="form-check form-switch">
@@ -1234,6 +1287,49 @@
 
             const btnDeselectAll = document.getElementById('btnDeselectAll');
             if (btnDeselectAll) btnDeselectAll.addEventListener('click', function() { deselectAll(); });
+
+            // New bulk selection actions for All GL Accounts table
+            const btnMarkSelected = document.getElementById('btnMarkSelected');
+            if (btnMarkSelected) btnMarkSelected.addEventListener('click', function() {
+                const ids = Array.from(document.querySelectorAll('#table-gl-accounts .account-checkbox:checked')).map(cb => cb.value);
+                if (ids.length === 0) return showAlert('Please check at least one account.', 'warning');
+                updateBulkSelection(ids, true);
+            });
+
+            const btnMarkUnselected = document.getElementById('btnMarkUnselected');
+            if (btnMarkUnselected) btnMarkUnselected.addEventListener('click', function() {
+                const ids = Array.from(document.querySelectorAll('#table-gl-accounts .account-checkbox:checked')).map(cb => cb.value);
+                if (ids.length === 0) return showAlert('Please check at least one account.', 'warning');
+                updateBulkSelection(ids, false);
+            });
+
+            function updateBulkSelection(accountIds, isSelected) {
+                fetch('{{ route('admin.gl-accounts.bulk-selection') }}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ account_ids: accountIds, is_selected: isSelected })
+                })
+                .then(async response => {
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        const message = data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Bulk update failed');
+                        throw new Error(message);
+                    }
+                    return data;
+                })
+                .then(data => {
+                    showAlert(data.message || 'Selection updated.', 'success');
+                    setTimeout(() => window.location.reload(), 800);
+                })
+                .catch(err => {
+                    console.error('Bulk selection error:', err);
+                    showAlert(err.message || 'Bulk update failed', 'error');
+                });
+            }
 
             // View buttons
             document.querySelectorAll('.btn-view').forEach(btn => {
@@ -1549,21 +1645,13 @@
                         const account = data.account;
                         document.getElementById('edit_account_code').value = account.account_code;
                         document.getElementById('edit_account_name').value = account.account_name;
-                        document.getElementById('edit_account_type').value = account.account_type;
+                        // Account type is managed via relationships and hidden in the edit form
                         document.getElementById('edit_cashflow_type').value = account.cashflow_type || 'disbursements';
-                        document.getElementById('edit_parent_id').value = account.parent_id || '';
+                        // Parent is managed via relationship actions; no parent field in edit form
                         document.getElementById('edit_is_active').checked = account.is_active;
                         document.getElementById('edit_is_selected').checked = account.is_selected;
 
-                        // Populate parent accounts dropdown
-                        const parentSelect = document.getElementById('edit_parent_id');
-                        parentSelect.innerHTML = '<option value="">No Parent</option>';
-                        data.parentAccounts.forEach(parent => {
-                            const option = document.createElement('option');
-                            option.value = parent.id;
-                            option.textContent = `${parent.account_code} - ${parent.account_name}`;
-                            parentSelect.appendChild(option);
-                        });
+                        // Removed parent accounts dropdown population
 
                         // Store account ID for form submission
                         document.getElementById('editAccountForm').dataset.accountId = id;
@@ -1652,11 +1740,17 @@
                         const childSelect = document.getElementById('childAccounts');
                         childSelect.innerHTML = '';
 
+                        // Build options: eligible singles + existing children (pre-selected)
+                        const existingChildIds = Array.from(document.querySelectorAll(`tr[data-id="${accountId}"] ~ tr.child-account`)).map(tr => tr.getAttribute('data-id'));
+
                         data.data.forEach(account => {
-                            if (account.id != accountId && account.account_type === 'single') {
+                            const isExistingChild = existingChildIds.includes(String(account.id));
+                            const isEligibleSingle = account.account_type === 'single';
+                            if (account.id != accountId && (isEligibleSingle || isExistingChild)) {
                                 const option = document.createElement('option');
                                 option.value = account.id;
                                 option.textContent = `${account.account_code} - ${account.account_name}`;
+                                if (isExistingChild) option.selected = true;
                                 childSelect.appendChild(option);
                             }
                         });
@@ -1790,32 +1884,89 @@
                 e.preventDefault();
                 const accountId = this.dataset.accountId;
                 const formData = new FormData(this);
+                // Convert to JSON to avoid empty required fields being sent unintentionally
+                const payload = {
+                    account_code: formData.get('account_code')?.toString().trim(),
+                    account_name: formData.get('account_name')?.toString().trim(),
+                    cashflow_type: formData.get('edit_cashflow_type') ? formData.get('edit_cashflow_type') : formData.get('cashflow_type'),
+                    is_active: document.getElementById('edit_is_active').checked,
+                    is_selected: document.getElementById('edit_is_selected').checked,
+                };
+                // Remove undefined/empty keys
+                Object.keys(payload).forEach(k => (payload[k] === undefined || payload[k] === null || payload[k] === '') && delete payload[k]);
 
                 fetch(`{{ route('admin.gl-accounts') }}/${accountId}`, {
                     method: 'PUT',
                     headers: {
                         'X-CSRF-TOKEN': csrfToken,
                         'Accept': 'application/json',
+                        'Content-Type': 'application/json',
                     },
-                    body: formData
+                    body: JSON.stringify(payload)
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showAlert(data.message, 'success');
-                        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 1000);
-                    } else {
-                        showAlert(data.message || 'Failed to update account', 'error');
+                .then(async response => {
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        const message = data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to update account');
+                        throw new Error(message);
                     }
+                    return data;
+                })
+                .then(data => {
+                    showAlert(data.message || 'GL Account updated successfully.', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 800);
                 })
                 .catch(error => {
                     console.error('Error updating account:', error);
-                    showAlert('Error updating account', 'error');
+                    showAlert(error.message || 'Error updating account', 'error');
                 });
             });
+
+            // Add account submission
+            const addAccountForm = document.getElementById('addAccountForm');
+            if (addAccountForm) {
+                addAccountForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    const formData = new FormData(this);
+                    const payload = {
+                        account_code: formData.get('account_code')?.toString().trim(),
+                        account_name: formData.get('account_name')?.toString().trim(),
+                        cashflow_type: formData.get('cashflow_type'),
+                        is_active: document.getElementById('add_is_active').checked,
+                        is_selected: document.getElementById('add_is_selected').checked,
+                    };
+
+                    fetch('{{ route('admin.gl-accounts.store') }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(async response => {
+                        const data = await response.json().catch(() => ({}));
+                        if (!response.ok) {
+                            const message = data.message || (data.errors ? Object.values(data.errors).flat().join('\n') : 'Failed to create account');
+                            throw new Error(message);
+                        }
+                        return data;
+                    })
+                    .then(data => {
+                        showAlert(data.message || 'GL Account created successfully.', 'success');
+                        bootstrap.Modal.getInstance(document.getElementById('addAccountModal')).hide();
+                        setTimeout(() => window.location.reload(), 800);
+                    })
+                    .catch(err => {
+                        console.error('Create account error:', err);
+                        showAlert(err.message || 'Failed to create account', 'error');
+                    });
+                });
+            }
 
             document.getElementById('makeParentForm').addEventListener('submit', function(e) {
                 e.preventDefault();

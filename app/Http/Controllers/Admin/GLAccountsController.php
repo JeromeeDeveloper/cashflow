@@ -205,49 +205,73 @@ class GLAccountsController extends Controller
     }
 
     /**
+     * Store a newly created GL account.
+     */
+    public function store(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'account_code' => 'required|string|max:50|unique:gl_accounts,account_code',
+            'account_name' => 'required|string|max:255',
+            'cashflow_type' => 'required|in:receipts,disbursements',
+            'is_active' => 'sometimes|boolean',
+            'is_selected' => 'sometimes|boolean'
+        ]);
+
+        $glAccount = GLAccount::create([
+            'account_code' => $validated['account_code'],
+            'account_name' => $validated['account_name'],
+            'cashflow_type' => $validated['cashflow_type'],
+            'is_active' => $request->boolean('is_active', true),
+            'is_selected' => $request->boolean('is_selected', false),
+            'account_type' => 'single',
+            'level' => 1,
+            'parent_id' => null,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'GL Account created successfully.',
+            'account' => $glAccount
+        ], 201);
+    }
+
+    /**
      * Update a GL account.
      */
     public function update(Request $request, GLAccount $glAccount)
     {
-        $request->validate([
-            'account_code' => 'required|string|max:50|unique:gl_accounts,account_code,' . $glAccount->id,
-            'account_name' => 'required|string|max:255',
-            'account_type' => 'required|in:parent,single,child',
-            'cashflow_type' => 'required|in:receipts,disbursements',
-            'parent_id' => 'nullable|exists:gl_accounts,id',
-            'is_active' => 'boolean',
-            'is_selected' => 'boolean'
+        $validated = $request->validate([
+            'account_code' => 'sometimes|required|string|max:50|unique:gl_accounts,account_code,' . $glAccount->id,
+            'account_name' => 'sometimes|required|string|max:255',
+            // account_type is managed by relationship actions; not editable in this form
+            'cashflow_type' => 'sometimes|required|in:receipts,disbursements',
+            // parent_id is managed via relationship actions; not editable in this form
+            'is_active' => 'sometimes|boolean',
+            'is_selected' => 'sometimes|boolean'
         ]);
 
-        // Check if trying to set as parent of itself
-        if ($request->parent_id == $glAccount->id) {
-            return response()->json(['error' => 'An account cannot be its own parent.'], 422);
-        }
+        // Parent-child changes are not allowed via this endpoint
 
-        // Check if trying to set a parent account as child of its own child
-        if ($request->parent_id) {
-            $potentialParent = GLAccount::find($request->parent_id);
-            if ($potentialParent && $glAccount->getAllDescendants()->contains($potentialParent->id)) {
-                return response()->json(['error' => 'Cannot set a parent account as child of its own descendant.'], 422);
-            }
+        $updateData = [];
+        if ($request->has('account_code')) {
+            $updateData['account_code'] = $validated['account_code'];
         }
-
-        $glAccount->update([
-            'account_code' => $request->account_code,
-            'account_name' => $request->account_name,
-            'account_type' => $request->account_type,
-            'parent_id' => $request->parent_id,
-            'is_active' => $request->boolean('is_active'),
-            'is_selected' => $request->boolean('is_selected')
-        ]);
-
-        // Update level based on parent
-        if ($request->parent_id) {
-            $parent = GLAccount::find($request->parent_id);
-            $glAccount->update(['level' => $parent->level + 1]);
-        } else {
-            $glAccount->update(['level' => 1]);
+        if ($request->has('account_name')) {
+            $updateData['account_name'] = $validated['account_name'];
         }
+        if ($request->has('cashflow_type')) {
+            $updateData['cashflow_type'] = $validated['cashflow_type'];
+        }
+        if ($request->has('is_active')) {
+            $updateData['is_active'] = $request->boolean('is_active');
+        }
+        if ($request->has('is_selected')) {
+            $updateData['is_selected'] = $request->boolean('is_selected');
+        }
+        // Do not update account_type here
+        $glAccount->update($updateData);
+
+        // Do not change hierarchy level via this endpoint
 
         return response()->json([
             'success' => true,
