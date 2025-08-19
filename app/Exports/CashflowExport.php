@@ -70,18 +70,67 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
     public function array(): array
     {
         try {
+            // Log selected filters
+            Log::info('Export filters:', [
+                'year' => $this->year,
+                'month' => $this->month,
+                'branch_id' => $this->branchId,
+                'period' => $this->period,
+            ]);
+
             // Get cashflow data with relationships
-            $query = Cashflow::with(['glAccount', 'branch'])
-                ->where('year', $this->year);
-            if ($this->month) {
+            $query = Cashflow::with(['glAccount', 'branch']);
+
+            // Apply filters only if they match existing data
+            if (!is_null($this->year)) {
+                $query->where('year', $this->year);
+            }
+            if (!empty($this->month)) {
                 $query->where('month', $this->month);
             }
-
-            if ($this->branchId) {
+            if (!is_null($this->branchId)) {
                 $query->where('branch_id', $this->branchId);
             }
 
             $all = $query->orderBy('id')->get();
+
+            // If no data found with filters, try to get data for the year only
+            if ($all->count() === 0 && !is_null($this->year)) {
+                Log::info('No data found with month filter, trying year only');
+                $query = Cashflow::with(['glAccount', 'branch'])
+                    ->where('year', $this->year);
+                if (!is_null($this->branchId)) {
+                    $query->where('branch_id', $this->branchId);
+                }
+                $all = $query->orderBy('id')->get();
+            }
+
+            // If still no data, get all available data
+            if ($all->count() === 0) {
+                Log::info('No data found with year filter, getting all available data');
+                $query = Cashflow::with(['glAccount', 'branch']);
+                if (!is_null($this->branchId)) {
+                    $query->where('branch_id', $this->branchId);
+                }
+                $all = $query->orderBy('id')->get();
+            }
+
+            // Debug: Check what exists in cashflow table without filters
+            $allCashflows = Cashflow::with(['glAccount', 'branch'])->get();
+            Log::info('All cashflows in table (no filters):', [
+                'count' => $allCashflows->count(),
+                'sample' => $allCashflows->take(5)->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'year' => $item->year,
+                        'month' => $item->month,
+                        'gl_account_id' => $item->gl_account_id,
+                        'cashflow_type' => $item->cashflow_type,
+                        'actual_amount' => $item->actual_amount,
+                        'gl_account_name' => $item->glAccount ? $item->glAccount->account_name : 'N/A'
+                    ];
+                })->toArray()
+            ]);
 
             // Debug: Log what we're getting
             Log::info('Cashflow data found:', [
@@ -90,6 +139,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                     return [
                         'id' => $item->id,
                         'gl_account_id' => $item->gl_account_id,
+                        'cashflow_type' => $item->cashflow_type,
                         'section' => $item->section,
                         'actual_amount' => $item->actual_amount,
                         'gl_account_name' => $item->glAccount ? $item->glAccount->account_name : 'N/A'
@@ -119,27 +169,21 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             ]);
 
             // Calculate beginning balance (sum of all receipts)
-            $beginningBalance = $all->where('section', 'receipts')->sum('actual_amount');
+            $beginningBalance = $all->where('cashflow_type', 'receipts')->sum('actual_amount');
 
             // Row 8: CASH BEGINNING BALANCE
-            $beginningRow = ['CASH BEGINNING BALANCE', $beginningBalance, '', ''];
+            $beginningRow = ['CASH BEGINNING BALANCE', '', ''];
 
-            // Add period columns with formulas
-            if ($this->period <= 12) {
-                for ($i = 1; $i <= $this->period; $i++) {
-                    $beginningRow[] = $beginningBalance;
-                }
-            } else {
-                for ($i = 1; $i <= $this->period; $i++) {
-                    $beginningRow[] = $beginningBalance;
-                }
+            // Add period columns with formulas - D8 = B8, E8 = D8, etc.
+            for ($i = 1; $i <= $this->period; $i++) {
+                $beginningRow[] = $beginningBalance;
             }
 
             $beginningRow[] = $beginningBalance * $this->period; // Total
             $rows[] = $beginningRow;
 
             // Row 9: ADD: RECEIPTS (Section header)
-            $receiptsHeader = ['ADD: RECEIPTS', '', '', ''];
+            $receiptsHeader = ['ADD: RECEIPTS', '', ''];
             for ($i = 1; $i <= $this->period; $i++) {
                 $receiptsHeader[] = '';
             }
@@ -154,12 +198,27 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             $receiptsTotal['total'] = 0;
 
             // Get receipts data
-            $receiptsData = $all->where('section', 'receipts');
+            $receiptsData = $all->where('cashflow_type', 'receipts');
+
+            // Debug: Log receipts data
+            Log::info('Receipts data found:', [
+                'count' => $receiptsData->count(),
+                'data' => $receiptsData->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'gl_account_id' => $item->gl_account_id,
+                        'cashflow_type' => $item->cashflow_type,
+                        'actual_amount' => $item->actual_amount,
+                        'gl_account_name' => $item->glAccount ? $item->glAccount->account_name : 'N/A'
+                    ];
+                })->toArray()
+            ]);
 
             // Process receipts data directly
             foreach ($receiptsData as $cashflow) {
                 $glAccount = $cashflow->glAccount;
                 if (!$glAccount) {
+                    Log::warning('No GL account found for cashflow ID: ' . $cashflow->id);
                     continue; // Skip if no GL account found
                 }
 
@@ -197,11 +256,50 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $receiptsTotal['total'] += array_sum($projections);
 
                 $rows[] = $receiptRow;
+
+                // Add child accounts if this is a parent
+                if ($glAccount->children->count() > 0) {
+                    foreach ($glAccount->children as $child) {
+                        // Find cashflow data for this child in receipts section
+                        $childCashflow = $receiptsData->firstWhere('gl_account_id', $child->id);
+
+                        if ($childCashflow) {
+                            $childActual = (float) ($childCashflow->actual_amount ?? 0);
+                            $childProjection = (float) ($childCashflow->projection_percentage ?? 0);
+
+                            $childProjections = [];
+                            $childCurrentValue = $childActual;
+
+                            for ($i = 1; $i <= $this->period; $i++) {
+                                $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
+                                $childProjections[] = $childCurrentValue;
+                                $receiptsTotal[$i] += $childCurrentValue;
+                            }
+
+                            $childRow = [
+                                '  └─ ' . $child->account_name, // Column A: PARTICULARS (with indentation)
+                                $childActual, // Column B: ACTUAL
+                                $childProjection, // Column C: PROJECTION %
+                            ];
+
+                            // Add child projection values (Column D, E, F, etc.)
+                            foreach ($childProjections as $value) {
+                                $childRow[] = $value;
+                            }
+
+                            $childRow[] = array_sum($childProjections); // Total column
+                            $receiptsTotal['total'] += array_sum($childProjections);
+
+                            $rows[] = $childRow;
+                        }
+                    }
+                }
             }
 
             // Row after receipts: TOTAL CASH AVAILABLE
-            $tcaRow = ['TOTAL CASH AVAILABLE', '', '', ''];
+            $tcaRow = ['TOTAL CASH AVAILABLE', '', ''];
 
+            // Calculate total cash available for each period: Beginning Balance + Receipts for that period
             for ($i = 1; $i <= $this->period; $i++) {
                 $tcaRow[] = $beginningBalance + $receiptsTotal[$i];
             }
@@ -210,7 +308,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             $rows[] = $tcaRow;
 
             // Row: LESS: DISBURSEMENTS (Section header)
-            $disbursementsHeader = ['LESS: DISBURSEMENTS', '', '', ''];
+            $disbursementsHeader = ['LESS: DISBURSEMENTS', '', ''];
             for ($i = 1; $i <= $this->period; $i++) {
                 $disbursementsHeader[] = '';
             }
@@ -225,12 +323,27 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             $disbursementsTotal['total'] = 0;
 
             // Get disbursements data
-            $disbursementsData = $all->where('section', 'disbursements');
+            $disbursementsData = $all->where('cashflow_type', 'disbursements');
+
+            // Debug: Log disbursements data
+            Log::info('Disbursements data found:', [
+                'count' => $disbursementsData->count(),
+                'data' => $disbursementsData->map(function($item) {
+                    return [
+                        'id' => $item->id,
+                        'gl_account_id' => $item->gl_account_id,
+                        'cashflow_type' => $item->cashflow_type,
+                        'actual_amount' => $item->actual_amount,
+                        'gl_account_name' => $item->glAccount ? $item->glAccount->account_name : 'N/A'
+                    ];
+                })->toArray()
+            ]);
 
             // Process disbursements data directly
             foreach ($disbursementsData as $cashflow) {
                 $glAccount = $cashflow->glAccount;
                 if (!$glAccount) {
+                    Log::warning('No GL account found for cashflow ID: ' . $cashflow->id);
                     continue; // Skip if no GL account found
                 }
 
@@ -268,10 +381,48 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $disbursementsTotal['total'] += array_sum($projections);
 
                 $rows[] = $disbursementRow;
+
+                // Add child accounts if this is a parent
+                if ($glAccount->children->count() > 0) {
+                    foreach ($glAccount->children as $child) {
+                        // Find cashflow data for this child in disbursements section
+                        $childCashflow = $disbursementsData->firstWhere('gl_account_id', $child->id);
+
+                        if ($childCashflow) {
+                            $childActual = (float) ($childCashflow->actual_amount ?? 0);
+                            $childProjection = (float) ($childCashflow->projection_percentage ?? 0);
+
+                            $childProjections = [];
+                            $childCurrentValue = $childActual;
+
+                            for ($i = 1; $i <= $this->period; $i++) {
+                                $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
+                                $childProjections[] = $childCurrentValue;
+                                $disbursementsTotal[$i] += $childCurrentValue;
+                            }
+
+                            $childRow = [
+                                '  └─ ' . $child->account_name, // Column A: PARTICULARS (with indentation)
+                                $childActual, // Column B: ACTUAL
+                                $childProjection, // Column C: PROJECTION %
+                            ];
+
+                            // Add child projection values (Column D, E, F, etc.)
+                            foreach ($childProjections as $value) {
+                                $childRow[] = $value;
+                            }
+
+                            $childRow[] = array_sum($childProjections); // Total column
+                            $disbursementsTotal['total'] += array_sum($childProjections);
+
+                            $rows[] = $childRow;
+                        }
+                    }
+                }
             }
 
             // Row: TOTAL DISBURSEMENTS
-            $tdRow = ['TOTAL DISBURSEMENTS', '', '', ''];
+            $tdRow = ['TOTAL DISBURSEMENTS', '', ''];
 
             for ($i = 1; $i <= $this->period; $i++) {
                 $tdRow[] = $disbursementsTotal[$i];
@@ -281,16 +432,23 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             $rows[] = $tdRow;
 
             // Row: CASH ENDING BALANCE
-            $cebRow = ['CASH ENDING BALANCE', '', '', ''];
+            $cebRow = ['CASH ENDING BALANCE', '', ''];
 
+            // Formula: CASH BEGINNING + TOTAL CASH AVAILABLE - TOTAL DISBURSEMENTS for each period
             for ($i = 1; $i <= $this->period; $i++) {
-                $cebRow[] = ($beginningBalance + $receiptsTotal[$i]) - $disbursementsTotal[$i];
+                $cebRow[] = $beginningBalance + ($beginningBalance + $receiptsTotal[$i]) - $disbursementsTotal[$i];
             }
 
-            $cebTotal = ($beginningBalance * $this->period) + $receiptsTotal['total'] - $disbursementsTotal['total'];
+            $cebTotal = ($beginningBalance * $this->period) + (($beginningBalance * $this->period) + $receiptsTotal['total']) - $disbursementsTotal['total'];
             $cebRow[] = $cebTotal;
 
             $rows[] = $cebRow;
+
+            // Debug: Log final rows array
+            Log::info('Final export rows:', [
+                'total_rows' => count($rows),
+                'rows' => $rows
+            ]);
 
             return $rows;
 
