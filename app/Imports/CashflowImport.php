@@ -140,7 +140,22 @@ class CashflowImport implements ToCollection, WithStartRow
 
                 Log::info("Child GL Account result: ID={$glAccount->id}, Code='{$glAccount->account_code}', Name='{$glAccount->account_name}'");
 
-                // Don't add child accounts to products array - they're just headers
+                // If child row has an amount, store it as a product
+                if (!empty($actualAmount) && $this->isNumeric($actualAmount)) {
+                    $amount = $this->extractNumericValue($actualAmount);
+                    $cashflowType = $currentSection === 'receipts' ? 'receipts' : 'disbursements';
+
+                    $cashflowData['products'][] = [
+                        'gl_account_id' => $glAccount->id,
+                        'account_name' => trim(str_replace('>', '', $accountName)),
+                        'actual_amount' => $amount,
+                        'section' => $currentSection,
+                        'cashflow_type' => $cashflowType
+                    ];
+                    Log::info("Added CHILD product to array: " . json_encode(end($cashflowData['products'])));
+                }
+
+                // Do not treat child header lines without amount as products
                 continue;
             }
 
