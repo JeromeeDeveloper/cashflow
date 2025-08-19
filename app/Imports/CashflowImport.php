@@ -71,6 +71,12 @@ class CashflowImport implements ToCollection, WithStartRow
                 continue;
             }
 
+            // Skip "TOTAL CASH BALANCE (END)" row
+            if (str_contains(strtoupper($accountCode), 'TOTAL CASH BALANCE (END)') || str_contains(strtoupper($accountName), 'TOTAL CASH BALANCE (END)')) {
+                Log::info("Skipping 'TOTAL CASH BALANCE (END)' row: Code='{$accountCode}', Name='{$accountName}'");
+                continue;
+            }
+
             // Check for section headers (these might be in column A or B)
             if (str_contains(strtoupper($accountCode), 'CASH BEGINNING BALANCE') || str_contains(strtoupper($accountName), 'CASH BEGINNING BALANCE')) {
                 $currentSection = 'beginning_balance';
