@@ -27,8 +27,9 @@ class GLAccountController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'account_code' => 'required|string|max:50|unique:gl_accounts,account_code',
+            'account_code' => 'required|string|max:50',
             'account_name' => 'required|string|max:255',
+            'cashflow_type' => 'required|in:receipts,disbursements',
         ]);
 
         if ($validator->fails()) {
@@ -39,10 +40,26 @@ class GLAccountController extends Controller
             ], 422);
         }
 
+        // Check for composite unique constraint: account_code + cashflow_type
+        $existingAccount = GLAccount::where('account_code', $request->account_code)
+            ->where('cashflow_type', $request->cashflow_type)
+            ->first();
+
+        if ($existingAccount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An account with this code and cash flow type already exists.',
+                'errors' => [
+                    'account_code' => ['This account code with the selected cash flow type already exists.']
+                ]
+            ], 422);
+        }
+
         try {
             $glAccount = GLAccount::create([
                 'account_code' => $request->account_code,
                 'account_name' => $request->account_name,
+                'cashflow_type' => $request->cashflow_type,
             ]);
 
             return response()->json([
@@ -65,7 +82,7 @@ class GLAccountController extends Controller
     public function show(GLAccount $glAccount): JsonResponse
     {
         $glAccount->loadCount('cashflows');
-        
+
         return response()->json([
             'success' => true,
             'data' => [
@@ -85,8 +102,9 @@ class GLAccountController extends Controller
     public function update(Request $request, GLAccount $glAccount): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'account_code' => 'required|string|max:50|unique:gl_accounts,account_code,' . $glAccount->id,
+            'account_code' => 'required|string|max:50',
             'account_name' => 'required|string|max:255',
+            'cashflow_type' => 'required|in:receipts,disbursements',
         ]);
 
         if ($validator->fails()) {
@@ -97,10 +115,27 @@ class GLAccountController extends Controller
             ], 422);
         }
 
+        // Check for composite unique constraint: account_code + cashflow_type
+        $existingAccount = GLAccount::where('account_code', $request->account_code)
+            ->where('cashflow_type', $request->cashflow_type)
+            ->where('id', '!=', $glAccount->id)
+            ->first();
+
+        if ($existingAccount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An account with this code and cash flow type already exists.',
+                'errors' => [
+                    'account_code' => ['This account code with the selected cash flow type already exists.']
+                ]
+            ], 422);
+        }
+
         try {
             $glAccount->update([
                 'account_code' => $request->account_code,
                 'account_name' => $request->account_name,
+                'cashflow_type' => $request->cashflow_type,
             ]);
 
             return response()->json([
@@ -152,7 +187,7 @@ class GLAccountController extends Controller
     public function getAccounts(Request $request): JsonResponse
     {
         $search = $request->get('search', '');
-        
+
         $accounts = GLAccount::where('account_name', 'LIKE', "%{$search}%")
             ->orWhere('account_code', 'LIKE', "%{$search}%")
             ->orderBy('account_code')

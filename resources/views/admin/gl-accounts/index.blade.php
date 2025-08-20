@@ -297,49 +297,6 @@
                     </div>
                 </section>
 
-                <!-- Information Section -->
-                <section class="row mb-4">
-                    <div class="col-12">
-                        <div class="alert alert-info border-0">
-                            <div class="d-flex align-items-start">
-                                <i class="bi bi-info-circle fs-4 me-3 mt-1"></i>
-                                <div>
-                                    <h6 class="alert-heading mb-2">Understanding Parent-Child Relationships</h6>
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <strong>👑 Parent Account:</strong>
-                                            <ul class="mb-0 mt-1">
-                                                <li>Groups related accounts together</li>
-                                                <li>Can have multiple child accounts</li>
-                                                <li>Shows "X Children" badge</li>
-                                                <li>Blue background color</li>
-                                            </ul>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <strong>👶 Child Account:</strong>
-                                            <ul class="mb-0 mt-1">
-                                                <li>Belongs to a parent account</li>
-                                                <li>Shows "Child of [Parent Name]" badge</li>
-                                                <li>Indented with "└─" symbol</li>
-                                                <li>White background color</li>
-                                            </ul>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <strong>🎯 Benefits:</strong>
-                                            <ul class="mb-0 mt-1">
-                                                <li>Better organization</li>
-                                                <li>Cleaner cashflow views</li>
-                                                <li>Easier reporting</li>
-                                                <li>Clear relationship indicators</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
                    <!-- All GL Accounts Management -->
                    <section class="row">
                     <div class="col-12">

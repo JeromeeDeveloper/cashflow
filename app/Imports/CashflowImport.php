@@ -223,18 +223,22 @@ class CashflowImport implements ToCollection, WithStartRow
             return $this->handleChildAccount($accountCode, $accountName, $cashflowType);
         }
 
-        // First try to find by account code (exact match) - this is the primary identifier
+        // First try to find by account code and cashflow type (composite unique constraint)
         if (!empty($accountCode)) {
-            $glAccount = GLAccount::where('account_code', $accountCode)->first();
+            $glAccount = GLAccount::where('account_code', $accountCode)
+                ->where('cashflow_type', $cashflowType ?? 'disbursements')
+                ->first();
             if ($glAccount) {
                 return $glAccount;
             }
         }
 
-        // Only if no account code is provided, try to find by name
+        // Only if no account code is provided, try to find by name and cashflow type
         // But be more strict - only exact name matches to avoid duplicates
         if (empty($accountCode)) {
-            $glAccount = GLAccount::where('account_name', $accountName)->first();
+            $glAccount = GLAccount::where('account_name', $accountName)
+                ->where('cashflow_type', $cashflowType ?? 'disbursements')
+                ->first();
             if ($glAccount) {
                 return $glAccount;
             }
@@ -424,7 +428,7 @@ class CashflowImport implements ToCollection, WithStartRow
     /**
      * Find or create parent account
      */
-    private function findOrCreateParentAccount($parentName)
+    private function findOrCreateParentAccount($parentName, $cashflowType = null)
     {
         Log::info("Looking for parent account: '{$parentName}'");
         Log::info("Parent name length: " . strlen($parentName));
@@ -439,8 +443,10 @@ class CashflowImport implements ToCollection, WithStartRow
             Log::error("Database connection test failed: " . $e->getMessage());
         }
 
-        // Try to find existing parent account by name (regardless of type)
-        $parentAccount = GLAccount::where('account_name', $parentName)->first();
+        // Try to find existing parent account by name and cashflow type
+        $parentAccount = GLAccount::where('account_name', $parentName)
+            ->where('cashflow_type', $cashflowType ?? 'disbursements')
+            ->first();
 
         if ($parentAccount) {
             Log::info("Found existing account: ID={$parentAccount->id}, Name='{$parentAccount->account_name}', Type='{$parentAccount->account_type}'");
@@ -469,6 +475,7 @@ class CashflowImport implements ToCollection, WithStartRow
                 'account_name' => $parentName,
                 'account_type' => 'parent',
                 'level' => 0,
+                'cashflow_type' => $cashflowType ?? 'disbursements',
             ];
 
             Log::info("About to insert parent account data: " . json_encode($dataToInsert));

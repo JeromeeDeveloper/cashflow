@@ -210,12 +210,27 @@ class GLAccountsController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'account_code' => 'required|string|max:50|unique:gl_accounts,account_code',
+            'account_code' => 'required|string|max:50',
             'account_name' => 'required|string|max:255',
             'cashflow_type' => 'required|in:receipts,disbursements',
             'is_active' => 'sometimes|boolean',
             'is_selected' => 'sometimes|boolean'
         ]);
+
+        // Check for composite unique constraint: account_code + cashflow_type
+        $existingAccount = GLAccount::where('account_code', $validated['account_code'])
+            ->where('cashflow_type', $validated['cashflow_type'])
+            ->first();
+
+        if ($existingAccount) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An account with this code and cash flow type already exists.',
+                'errors' => [
+                    'account_code' => ['This account code with the selected cash flow type already exists.']
+                ]
+            ], 422);
+        }
 
         $glAccount = GLAccount::create([
             'account_code' => $validated['account_code'],
@@ -241,7 +256,7 @@ class GLAccountsController extends Controller
     public function update(Request $request, GLAccount $glAccount)
     {
         $validated = $request->validate([
-            'account_code' => 'sometimes|required|string|max:50|unique:gl_accounts,account_code,' . $glAccount->id,
+            'account_code' => 'sometimes|required|string|max:50',
             'account_name' => 'sometimes|required|string|max:255',
             // account_type is managed by relationship actions; not editable in this form
             'cashflow_type' => 'sometimes|required|in:receipts,disbursements',
@@ -249,6 +264,27 @@ class GLAccountsController extends Controller
             'is_active' => 'sometimes|boolean',
             'is_selected' => 'sometimes|boolean'
         ]);
+
+        // Check for composite unique constraint: account_code + cashflow_type
+        if ($request->has('account_code') || $request->has('cashflow_type')) {
+            $accountCode = $request->get('account_code', $glAccount->account_code);
+            $cashflowType = $request->get('cashflow_type', $glAccount->cashflow_type);
+
+            $existingAccount = GLAccount::where('account_code', $accountCode)
+                ->where('cashflow_type', $cashflowType)
+                ->where('id', '!=', $glAccount->id)
+                ->first();
+
+            if ($existingAccount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An account with this code and cash flow type already exists.',
+                    'errors' => [
+                        'account_code' => ['This account code with the selected cash flow type already exists.']
+                    ]
+                ], 422);
+            }
+        }
 
         // Parent-child changes are not allowed via this endpoint
 
