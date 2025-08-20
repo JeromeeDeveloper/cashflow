@@ -21,14 +21,29 @@
 
             <form class="login-form" id="loginForm" method="POST" action="{{ url('/login') }}" novalidate>
                 @csrf
-                <div class="form-field">
-                    <input type="email" id="email" name="email" required autocomplete="email">
+
+                @if($errors->any())
+                    <div class="alert alert-danger" style="background: #fed7d7; border: 1px solid #feb2b2; color: #c53030; padding: 12px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
+                        <strong>Login Error:</strong>
+                        <ul style="margin: 8px 0 0 20px; padding: 0;">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                <div class="form-field {{ $errors->has('email') ? 'error' : '' }}">
+                    <input type="email" id="email" name="email" value="{{ old('email') }}" required autocomplete="email">
                     <label for="email">Email Address</label>
                     <div class="field-line"></div>
-                    <span class="error-message" id="emailError"></span>
+                    <span class="error-message" id="emailError">
+                        @if($errors->has('email'))
+                            {{ $errors->first('email') }}
+                        @endif
+                    </span>
                 </div>
 
-                <div class="form-field">
+                <div class="form-field {{ $errors->has('password') ? 'error' : '' }}">
                     <input type="password" id="password" name="password" required autocomplete="current-password">
                     <label for="password">Password</label>
                     <button type="button" class="password-reveal" id="passwordToggle" aria-label="Toggle password visibility">
@@ -40,7 +55,11 @@
                         </svg>
                     </button>
                     <div class="field-line"></div>
-                    <span class="error-message" id="passwordError"></span>
+                    <span class="error-message" id="passwordError">
+                        @if($errors->has('password'))
+                            {{ $errors->first('password') }}
+                        @endif
+                    </span>
                 </div>
 
                 <div class="form-actions">
@@ -85,8 +104,7 @@
                         </defs>
                     </svg>
                 </div>
-                <h3>Welcome back!</h3>
-                <p>Taking you to your creative dashboard...</p>
+
             </div>
         </div>
     </div>

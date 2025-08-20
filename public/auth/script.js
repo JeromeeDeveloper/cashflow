@@ -16,6 +16,7 @@ class ElegantPortfolioLoginForm {
         this.bindEvents();
         this.setupPasswordToggle();
         this.setupSocialButtons();
+        this.showServerErrors();
     }
 
     bindEvents() {
@@ -150,6 +151,20 @@ class ElegantPortfolioLoginForm {
             button.style.pointerEvents = loading ? 'none' : 'auto';
             button.style.opacity = loading ? '0.6' : '1';
         });
+    }
+
+    showServerErrors() {
+        // Check for server-side errors and display them
+        const emailError = document.getElementById('emailError');
+        const passwordError = document.getElementById('passwordError');
+
+        if (emailError && emailError.textContent.trim()) {
+            this.showError('email', emailError.textContent.trim());
+        }
+
+        if (passwordError && passwordError.textContent.trim()) {
+            this.showError('password', passwordError.textContent.trim());
+        }
     }
 
     showSuccess() {
