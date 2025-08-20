@@ -78,6 +78,20 @@ class FileController extends Controller
         ]);
 
         try {
+            // Prevent duplicate uploads for the same branch + year + month
+            $alreadyExists = CashflowFile::where('branch_id', $request->branch_id)
+                ->where('year', $request->year)
+                ->where('month', $request->month)
+                ->whereIn('status', ['pending', 'processing', 'processed'])
+                ->exists();
+
+            if ($alreadyExists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "A file has already been uploaded for {$request->month} {$request->year} for this branch.",
+                ], 422);
+            }
+
             $file = $request->file('file');
             $originalName = $file->getClientOriginalName();
             $fileName = 'cashflow_' . Str::slug($request->month) . '_' . $request->year . '_' . time() . '.' . $file->getClientOriginalExtension();

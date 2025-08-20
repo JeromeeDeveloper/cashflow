@@ -181,7 +181,7 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
             $beginningBalance = $all->where('cashflow_type', 'receipts')->sum('actual_amount');
 
             // Row 8: CASH BEGINNING BALANCE
-            $beginningRow = ['CASH BEGINNING BALANCE', '', ''];
+            $beginningRow = ['CASH BEGINNING BALANCE', (float) $beginningBalance, ''];
 
             // Add period columns with formulas - D8 = B8, E8 = D8, etc.
             for ($i = 1; $i <= $this->period; $i++) {
@@ -437,7 +437,8 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
             }
 
             // Row: TOTAL DISBURSEMENTS
-            $tdRow = ['TOTAL DISBURSEMENTS', '', ''];
+            $totalDisbActual = $all->where('cashflow_type', 'disbursements')->sum('actual_amount');
+            $tdRow = ['TOTAL DISBURSEMENTS', (float) $totalDisbActual, ''];
 
             for ($i = 1; $i <= $this->period; $i++) {
                 $tdRow[] = $disbursementsTotal[$i];
@@ -447,7 +448,7 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
             $rows[] = $tdRow;
 
             // Row: CASH ENDING BALANCE
-            $cebRow = ['CASH ENDING BALANCE', '', ''];
+            $cebRow = ['CASH ENDING BALANCE', (float) $beginningBalance, ''];
 
             // Formula: CASH BEGINNING + TOTAL CASH AVAILABLE - TOTAL DISBURSEMENTS for each period
             for ($i = 1; $i <= $this->period; $i++) {

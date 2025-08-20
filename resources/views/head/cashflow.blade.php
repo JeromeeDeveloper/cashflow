@@ -449,9 +449,11 @@
 
                 const params = new URLSearchParams({
                     year: year,
-                    month: monthNames[parseInt(month) - 1],
-                    branch_id: branchFilter.value
+                    month: monthNames[parseInt(month) - 1]
                 });
+                if (branchFilter.value) {
+                    params.set('branch_id', branchFilter.value);
+                }
 
                 fetch(`{{ route('head.cashflows.index') }}?${params}`)
                     .then(response => response.json())
@@ -473,6 +475,7 @@
 
                 const period = parseInt(document.getElementById('table_period').value || '3', 10);
                 const { labels } = getPeriodLabels();
+                const branchSelected = (document.getElementById('table_branch_filter').value || '').trim();
 
                 if (!Array.isArray(cashflows) || cashflows.length === 0) {
                     tbody.innerHTML = `
@@ -487,11 +490,43 @@
                 }
 
                 // Split by type
-                const receipts = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'receipts');
-                const disbursements = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'disbursements');
+                let receipts = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'receipts');
+                let disbursements = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'disbursements');
 
-                // Beginning balance = sum of all receipts actual_amount
-                const beginningBalance = receipts.reduce((sum, c) => sum + (parseFloat(c.actual_amount) || 0), 0);
+                // When "All Branches" is selected, consolidate rows by GL account across branches
+                if (!branchSelected) {
+                    const groupByAccount = (items) => {
+                        const map = new Map();
+                        items.forEach(c => {
+                            const key = c.gl_account?.id ?? c.gl_account_id ?? (c.account_name || 'N/A');
+                            const nameRaw = c.gl_account?.account_name || c.account_name || 'N/A';
+                            const isChild = c.gl_account && c.gl_account.parent_id;
+                            const displayName = isChild ? `&gt; ${nameRaw}` : nameRaw;
+                            const actual = parseFloat(c.actual_amount) || 0;
+                            const proj = parseFloat(c.projection_percentage) || 0;
+
+                            if (!map.has(key)) {
+                                map.set(key, { name: displayName, actual: 0, projections: Array(period).fill(0) });
+                            }
+                            const entry = map.get(key);
+                            entry.actual += actual;
+                            let current = actual;
+                            for (let i = 0; i < period; i++) {
+                                current = current * (1 + (proj / 100));
+                                entry.projections[i] += current;
+                            }
+                        });
+                        return Array.from(map.values());
+                    };
+
+                    receipts = groupByAccount(receipts);
+                    disbursements = groupByAccount(disbursements);
+                }
+
+                // Beginning balance = sum of all receipts actuals
+                const beginningBalance = (!branchSelected)
+                    ? receipts.reduce((sum, c) => sum + (parseFloat(c.actual) || 0), 0)
+                    : receipts.reduce((sum, c) => sum + (parseFloat(c.actual_amount) || 0), 0);
 
                 // Helper to build a row
                 const makeRow = (cells) => `<tr>${cells.join('')}</tr>`;
@@ -524,18 +559,28 @@
 
                 // Receipt rows
                 receipts.forEach(c => {
-                    const name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
-                    const actual = parseFloat(c.actual_amount) || 0;
-                    const proj = parseFloat(c.projection_percentage) || 0;
-                    const inputsCell = `<input type="number" class="form-control form-control-sm text-end projection-input" value="${proj}" min="0" max="100" step="0.01" data-id="${c.id}" style="width: 80px;">`;
-
-                    const projections = [];
-                    let current = actual;
-                    for (let i = 0; i < period; i++) {
-                        current = current * (1 + (proj / 100));
-                        projections.push(current);
-                        receiptsTotals[i] += current;
+                    let name, actual, projections, inputsCell;
+                    if (!branchSelected) {
+                        // Consolidated row (read-only projection column)
+                        name = c.name;
+                        actual = parseFloat(c.actual) || 0;
+                        projections = c.projections || Array(period).fill(0);
+                        inputsCell = '-';
+                    } else {
+                        name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
+                        actual = parseFloat(c.actual_amount) || 0;
+                        const proj = parseFloat(c.projection_percentage) || 0;
+                        inputsCell = `<input type="number" class="form-control form-control-sm text-end projection-input" value="${proj}" min="0" max="100" step="0.01" data-id="${c.id}" style="width: 80px;">`;
+                        projections = [];
+                        let current = actual;
+                        for (let i = 0; i < period; i++) {
+                            current = current * (1 + (proj / 100));
+                            projections.push(current);
+                        }
                     }
+
+                    // Update totals
+                    for (let i = 0; i < period; i++) receiptsTotals[i] += projections[i] || 0;
                     const sumProj = projections.reduce((a,b) => a+b, 0);
                     receiptsGrand += sumProj;
 
@@ -568,18 +613,26 @@
                 let disbGrand = 0;
 
                 disbursements.forEach(c => {
-                    const name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
-                    const actual = parseFloat(c.actual_amount) || 0;
-                    const proj = parseFloat(c.projection_percentage) || 0;
-                    const inputsCell = `<input type=\"number\" class=\"form-control form-control-sm text-end projection-input\" value=\"${proj}\" min=\"0\" max=\"100\" step=\"0.01\" data-id=\"${c.id}\" style=\"width: 80px;\">`;
-
-                    const projections = [];
-                    let current = actual;
-                    for (let i = 0; i < period; i++) {
-                        current = current * (1 + (proj / 100));
-                        projections.push(current);
-                        disbTotals[i] += current;
+                    let name, actual, projections, inputsCell;
+                    if (!branchSelected) {
+                        name = c.name;
+                        actual = parseFloat(c.actual) || 0;
+                        projections = c.projections || Array(period).fill(0);
+                        inputsCell = '-';
+                    } else {
+                        name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
+                        actual = parseFloat(c.actual_amount) || 0;
+                        const proj = parseFloat(c.projection_percentage) || 0;
+                        inputsCell = `<input type=\"number\" class=\"form-control form-control-sm text-end projection-input\" value=\"${proj}\" min=\"0\" max=\"100\" step=\"0.01\" data-id=\"${c.id}\" style=\"width: 80px;\">`;
+                        projections = [];
+                        let current = actual;
+                        for (let i = 0; i < period; i++) {
+                            current = current * (1 + (proj / 100));
+                            projections.push(current);
+                        }
                     }
+
+                    for (let i = 0; i < period; i++) disbTotals[i] += projections[i] || 0;
                     const sumProj = projections.reduce((a,b) => a+b, 0);
                     disbGrand += sumProj;
 
@@ -594,7 +647,10 @@
                 });
 
                 // TOTAL DISBURSEMENTS
-                const tdCells = [ td('TOTAL DISBURSEMENTS'), td(formatNumber(disbursements.reduce((s, c) => s + (parseFloat(c.actual_amount)||0), 0)), 'text-end'), td('-', 'text-end') ];
+                const totalDisbActual = (!branchSelected)
+                    ? disbursements.reduce((s, c) => s + (parseFloat(c.actual) || 0), 0)
+                    : disbursements.reduce((s, c) => s + (parseFloat(c.actual_amount) || 0), 0);
+                const tdCells = [ td('TOTAL DISBURSEMENTS'), td(formatNumber(totalDisbActual), 'text-end'), td('-', 'text-end') ];
                 for (let i = 0; i < period; i++) tdCells.push(td(formatNumber(disbTotals[i]), 'text-end'));
                 tdCells.push(td(formatNumber(disbGrand), 'text-end'));
                 tbody.insertAdjacentHTML('beforeend', makeRow(tdCells));
@@ -851,9 +907,11 @@
                 const params = new URLSearchParams({
                     year: year,
                     month: monthNames[parseInt(month) - 1],
-                    branch_id: branchId,
                     period: periodValue
                 });
+                if (branchId) {
+                    params.set('branch_id', branchId);
+                }
 
                 const downloadUrl = `{{ route('head.cashflows.export') }}?${params}`;
 

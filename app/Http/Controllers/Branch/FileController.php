@@ -61,28 +61,67 @@ class FileController extends Controller
         $branchId = optional(Auth::user()->branch)->id;
         abort_if(!$branchId, 422, 'User is not assigned to any branch');
 
-        $file = $request->file('file');
-        $fileName = 'cashflow_' . Str::slug($request->month) . '_' . $request->year . '_' . time() . '.' . $file->getClientOriginalExtension();
-        $filePath = $file->storeAs('cashflow_files/' . $branchId, $fileName, 'public');
+        // Prevent duplicate uploads for the same branch + year + month
+        $alreadyExists = CashflowFile::where('branch_id', $branchId)
+            ->where('year', (int) $request->year)
+            ->where('month', $request->month)
+            ->whereIn('status', ['pending', 'processing', 'processed'])
+            ->exists();
 
-        $cashflowFile = CashflowFile::create([
-            'file_name' => $fileName,
-            'file_path' => $filePath,
-            'original_name' => $file->getClientOriginalName(),
-            'file_type' => 'cashflow',
-            'year' => (int) $request->year,
-            'month' => $request->month,
-            'branch_id' => $branchId,
-            'uploaded_by' => Auth::user()->name,
-            'status' => 'pending',
-            'description' => $request->description,
-        ]);
+        if ($alreadyExists) {
+            return response()->json([
+                'success' => false,
+                'message' => "A file has already been uploaded for {$request->month} {$request->year}.",
+            ], 422);
+        }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'File uploaded successfully',
-            'data' => $cashflowFile->load('branch'),
-        ]);
+        try {
+            $file = $request->file('file');
+            $fileName = 'cashflow_' . Str::slug($request->month) . '_' . $request->year . '_' . time() . '.' . $file->getClientOriginalExtension();
+            $filePath = $file->storeAs('cashflow_files/' . $branchId, $fileName, 'public');
+
+            $cashflowFile = CashflowFile::create([
+                'file_name' => $fileName,
+                'file_path' => $filePath,
+                'original_name' => $file->getClientOriginalName(),
+                'file_type' => 'cashflow',
+                'year' => (int) $request->year,
+                'month' => $request->month,
+                'branch_id' => $branchId,
+                'uploaded_by' => Auth::user()->name,
+                'status' => 'processing',
+                'description' => $request->description,
+            ]);
+
+            // Auto-process import
+            $cashflowFile->update(['status' => 'processing']);
+            $absolutePath = Storage::disk('public')->path($filePath);
+
+            Excel::import(
+                new CashflowImport($cashflowFile, $cashflowFile->branch_id, $cashflowFile->year, $cashflowFile->month),
+                $absolutePath
+            );
+
+            $cashflowFile->update(['status' => 'processed']);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'File uploaded and processed successfully. Cashflow data has been imported.',
+                'data' => $cashflowFile->load('branch'),
+            ]);
+        } catch (\Exception $e) {
+            if (isset($cashflowFile)) {
+                $cashflowFile->update([
+                    'status' => 'error',
+                    'description' => 'Processing failed: ' . $e->getMessage(),
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'File uploaded but processing failed: ' . $e->getMessage(),
+            ], 500);
+        }
     }
 
     public function show(CashflowFile $cashflowFile): JsonResponse
@@ -131,6 +170,10 @@ class FileController extends Controller
             Storage::disk('public')->delete($cashflowFile->file_path);
         }
 
+        // Delete associated cashflow rows imported from this file
+        $cashflowFile->cashflows()->delete();
+
+        // Delete file record
         $cashflowFile->delete();
 
         return response()->json([

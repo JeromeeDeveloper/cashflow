@@ -300,10 +300,11 @@
                 }
             });
 
-            fetch('/branch/file/upload', {
+            fetch('{{ route('branch.files.store') }}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
                 },
                 body: formData
             })
@@ -347,7 +348,7 @@
         });
 
         function loadFileDetails(fileId) {
-            fetch(`/branch/file/${fileId}`)
+            fetch(`{{ url('branch/files') }}/${fileId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -389,7 +390,7 @@
         document.addEventListener('click', function(e) {
             if (e.target.closest('.btn-download')) {
                 const fileId = e.target.closest('.btn-download').getAttribute('data-id');
-                window.open(`/branch/file/${fileId}/download`, '_blank');
+                window.open(`{{ url('branch/files') }}/${fileId}/download`, '_blank');
             }
         });
 
@@ -418,10 +419,11 @@
         }
 
         function deleteFileAction(fileId) {
-            fetch(`/branch/file/${fileId}`, {
+            fetch(`{{ url('branch/files') }}/${fileId}`, {
                 method: 'DELETE',
                 headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
                 }
             })
             .then(response => response.json())

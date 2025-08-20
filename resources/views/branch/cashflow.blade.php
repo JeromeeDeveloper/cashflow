@@ -232,7 +232,7 @@
                     tbody.innerHTML = `
                         <tr>
                             <td colspan="${4 + period}" class="text-center text-muted py-4">
-                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                                 No cash flow entries found
                         </td>
                     </tr>

@@ -97,6 +97,120 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
 
             $all = $query->orderBy('id')->get();
 
+            // If exporting for all branches, consolidate across branches by GL account
+            if (is_null($this->branchId)) {
+                $period = $this->period;
+                $rows = [];
+
+                // Group helper
+                $groupByAccount = function ($items) use ($period) {
+                    $group = [];
+                    foreach ($items as $cf) {
+                        $key = $cf->gl_account_id ?? ('name:' . ($cf->account_name ?? 'N/A'));
+                        $name = $cf->glAccount
+                            ? ($cf->glAccount->parent_id ? ('> ' . $cf->glAccount->account_name) : $cf->glAccount->account_name)
+                            : ($cf->account_name ?? 'N/A');
+                        if (!isset($group[$key])) {
+                            $group[$key] = [
+                                'name' => $name,
+                                'actual' => 0.0,
+                                'projections' => array_fill(0, $period, 0.0),
+                            ];
+                        }
+                        $actual = (float) ($cf->actual_amount ?? 0);
+                        $proj = (float) ($cf->projection_percentage ?? 0);
+                        $group[$key]['actual'] += $actual;
+                        $current = $actual;
+                        for ($i = 0; $i < $period; $i++) {
+                            $current = $current * (1 + ($proj / 100));
+                            $group[$key]['projections'][$i] += $current;
+                        }
+                    }
+                    return array_values($group);
+                };
+
+                $receiptsData = $all->where('cashflow_type', 'receipts');
+                $disbursementsData = $all->where('cashflow_type', 'disbursements');
+
+                $receiptsGroups = $groupByAccount($receiptsData);
+                $disbGroups = $groupByAccount($disbursementsData);
+
+                // Beginning balance (sum of all receipts actuals)
+                $beginningBalance = array_reduce($receiptsGroups, function ($s, $g) { return $s + (float) $g['actual']; }, 0.0);
+
+                // Row: CASH BEGINNING BALANCE
+                $beginningRow = ['CASH BEGINNING BALANCE', (float) $beginningBalance, ''];
+                for ($i = 1; $i <= $period; $i++) { $beginningRow[] = $beginningBalance; }
+                $beginningRow[] = $beginningBalance * $period;
+                $rows[] = $beginningRow;
+
+                // Row: ADD: RECEIPTS
+                $rows[] = ['ADD: RECEIPTS', '', '', ...array_fill(0, $period, ''), ''];
+
+                // Totals per period for receipts
+                $receiptsTotals = array_fill(0, $period, 0.0);
+                $receiptsGrand = 0.0;
+
+                foreach ($receiptsGroups as $g) {
+                    $sumProj = array_sum($g['projections']);
+                    for ($i = 0; $i < $period; $i++) { $receiptsTotals[$i] += $g['projections'][$i]; }
+                    $receiptsGrand += $sumProj;
+
+                    $row = [
+                        $g['name'],
+                        (float) $g['actual'],
+                        '', // Projection % left blank when consolidated across branches
+                    ];
+                    foreach ($g['projections'] as $v) { $row[] = $v; }
+                    $row[] = $sumProj;
+                    $rows[] = $row;
+                }
+
+                // TOTAL CASH AVAILABLE
+                $tca = ['TOTAL CASH AVAILABLE', $beginningBalance, ''];
+                for ($i = 0; $i < $period; $i++) { $tca[] = $beginningBalance + $receiptsTotals[$i]; }
+                $tca[] = ($beginningBalance * $period) + $receiptsGrand;
+                $rows[] = $tca;
+
+                // Row: LESS: DISBURSEMENTS
+                $rows[] = ['LESS: DISBURSEMENTS', '', '', ...array_fill(0, $period, ''), ''];
+
+                $disbTotals = array_fill(0, $period, 0.0);
+                $disbGrand = 0.0;
+                foreach ($disbGroups as $g) {
+                    $sumProj = array_sum($g['projections']);
+                    for ($i = 0; $i < $period; $i++) { $disbTotals[$i] += $g['projections'][$i]; }
+                    $disbGrand += $sumProj;
+
+                    $row = [
+                        $g['name'],
+                        (float) $g['actual'],
+                        '',
+                    ];
+                    foreach ($g['projections'] as $v) { $row[] = $v; }
+                    $row[] = $sumProj;
+                    $rows[] = $row;
+                }
+
+                // TOTAL DISBURSEMENTS
+                $td = ['TOTAL DISBURSEMENTS', array_reduce($disbGroups, function ($s, $g) { return $s + (float) $g['actual']; }, 0.0), ''];
+                for ($i = 0; $i < $period; $i++) { $td[] = $disbTotals[$i]; }
+                $td[] = $disbGrand;
+                $rows[] = $td;
+
+                // CASH ENDING BALANCE
+                $ceb = ['CASH ENDING BALANCE', $beginningBalance, ''];
+                for ($i = 0; $i < $period; $i++) {
+                    $ceb[] = $beginningBalance + ($beginningBalance + $receiptsTotals[$i]) - $disbTotals[$i];
+                }
+                $ceb[] = ($beginningBalance * $period) + (($beginningBalance * $period) + $receiptsGrand) - $disbGrand;
+                $rows[] = $ceb;
+
+                // Log and return
+                Log::info('Consolidated export rows (all branches):', ['rows' => count($rows)]);
+                return $rows;
+            }
+
             // If no data found with filters, try to get data for the year only
             if ($all->count() === 0 && !is_null($this->year)) {
                 Log::info('No data found with month filter, trying year only');
@@ -181,7 +295,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             $beginningBalance = $all->where('cashflow_type', 'receipts')->sum('actual_amount');
 
             // Row 8: CASH BEGINNING BALANCE
-            $beginningRow = ['CASH BEGINNING BALANCE', '', ''];
+            $beginningRow = ['CASH BEGINNING BALANCE', (float) $beginningBalance, ''];
 
             // Add period columns with formulas - D8 = B8, E8 = D8, etc.
             for ($i = 1; $i <= $this->period; $i++) {
@@ -309,7 +423,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             }
 
             // Row after receipts: TOTAL CASH AVAILABLE
-            $tcaRow = ['TOTAL CASH AVAILABLE', '', ''];
+            $tcaRow = ['TOTAL CASH AVAILABLE', (float) $beginningBalance, ''];
 
             // Calculate total cash available for each period: Beginning Balance + Receipts for that period
             for ($i = 1; $i <= $this->period; $i++) {
@@ -437,7 +551,8 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             }
 
             // Row: TOTAL DISBURSEMENTS
-            $tdRow = ['TOTAL DISBURSEMENTS', '', ''];
+            $totalDisbActual = $all->where('cashflow_type', 'disbursements')->sum('actual_amount');
+            $tdRow = ['TOTAL DISBURSEMENTS', (float) $totalDisbActual, ''];
 
             for ($i = 1; $i <= $this->period; $i++) {
                 $tdRow[] = $disbursementsTotal[$i];
@@ -447,7 +562,7 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             $rows[] = $tdRow;
 
             // Row: CASH ENDING BALANCE
-            $cebRow = ['CASH ENDING BALANCE', '', ''];
+            $cebRow = ['CASH ENDING BALANCE', (float) $beginningBalance, ''];
 
             // Formula: CASH BEGINNING + TOTAL CASH AVAILABLE - TOTAL DISBURSEMENTS for each period
             for ($i = 1; $i <= $this->period; $i++) {
