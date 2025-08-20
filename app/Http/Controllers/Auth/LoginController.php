@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class LoginController extends Controller
 {
@@ -23,20 +24,18 @@ class LoginController extends Controller
 
             if (Auth::attempt($credentials, $request->filled('remember'))) {
                 $request->session()->regenerate();
-                return $this->authenticated($request, Auth::user());
+
+                // Set user status to active when they log in
+                $user = Auth::user();
+                DB::table('users')->where('id', $user->id)->update(['status' => 'active']);
+
+                return $this->authenticated($request, $user);
             }
 
             // Check if user exists but password is wrong
             $user = \App\Models\User::where('email', $request->email)->first();
 
             if ($user) {
-                // Check if user account is active
-                if (!$user->is_active) {
-                    return back()->withErrors([
-                        'email' => 'Wrong email or password. Please try again.',
-                    ])->onlyInput('email');
-                }
-
                 return back()->withErrors([
                     'password' => 'The password you entered is incorrect. Please try again.',
                 ])->onlyInput('email');
@@ -71,6 +70,12 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
+        // Set user status to inactive when they log out
+        if (Auth::check()) {
+            $user = Auth::user();
+            DB::table('users')->where('id', $user->id)->update(['status' => 'inactive']);
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();

@@ -12,6 +12,8 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // Global middleware can be added here
+        $middleware->append(App\Http\Middleware\UpdateUserStatus::class);
+
         // Register middleware aliases
         $middleware->alias([
             'role' => App\Http\Middleware\RoleMiddleware::class,

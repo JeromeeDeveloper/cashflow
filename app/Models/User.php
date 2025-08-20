@@ -97,4 +97,28 @@ class User extends Authenticatable
             Log::warning('Could not update last_login_at: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Check if the user is currently active (logged in).
+     */
+    public function isCurrentlyActive(): bool
+    {
+        return $this->status === 'active';
+    }
+
+    /**
+     * Set user as active (logged in).
+     */
+    public function setActive(): void
+    {
+        $this->update(['status' => 'active']);
+    }
+
+    /**
+     * Set user as inactive (logged out).
+     */
+    public function setInactive(): void
+    {
+        $this->update(['status' => 'inactive']);
+    }
 }
