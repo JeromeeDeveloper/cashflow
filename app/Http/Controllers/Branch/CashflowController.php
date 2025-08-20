@@ -28,6 +28,9 @@ class CashflowController extends Controller
 
         $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
             ->where('branch_id', $branch->id)
+            ->whereHas('glAccount', function ($q) {
+                $q->where('is_selected', 1);
+            })
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -49,7 +52,10 @@ class CashflowController extends Controller
         }
 
         $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
-            ->where('branch_id', $branchId);
+            ->where('branch_id', $branchId)
+            ->whereHas('glAccount', function ($q) {
+                $q->where('is_selected', 1);
+            });
 
         // Filter by year
         if ($request->filled('year')) {

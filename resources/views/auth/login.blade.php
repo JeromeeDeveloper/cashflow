@@ -5,6 +5,55 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cashflow Planning System</title>
     <link rel="stylesheet" href="{{ asset('auth/style.css') }}">
+    <style>
+        /* Lightweight modal styles scoped to login page */
+        #privacyModal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 9999;
+            padding: 16px;
+        }
+        #privacyModal[aria-hidden="false"] { display: flex; }
+        #privacyModal .modal-content {
+            background: #ffffff;
+            color: #2d3748;
+            width: 100%;
+            max-width: 520px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+        #privacyModal .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid #edf2f7;
+        }
+        #privacyModal .modal-title { font-size: 16px; font-weight: 600; }
+        #privacyModal .modal-body { padding: 16px 20px; line-height: 1.55; font-size: 14px; }
+        #privacyModal .modal-footer { padding: 14px 20px; display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #edf2f7; }
+        #privacyModal .btn-close {
+            background: transparent;
+            border: none;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        #privacyModal .btn-primary {
+            background: #4ECDC4;
+            border: none;
+            color: #ffffff;
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        #privacyModal .btn-primary:focus { outline: 2px solid #b2f5ea; outline-offset: 2px; }
+    </style>
 </head>
 <body>
     <div class="login-container">
@@ -62,7 +111,7 @@
                     </span>
                 </div>
 
-                <div class="form-actions">
+                {{-- <div class="form-actions">
                     <label class="remember-checkbox">
                         <input type="checkbox" id="remember" name="remember">
                         <span class="checkbox-custom">
@@ -73,7 +122,7 @@
                         <span class="checkbox-label">Remember me</span>
                     </label>
                     <a href="#" class="forgot-password">Forgot password?</a>
-                </div>
+                </div> --}}
 
                 <button type="submit" class="signin-button">
                     <span class="button-text">Sign In</span>
@@ -105,6 +154,22 @@
                     </svg>
                 </div>
 
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy Policy Modal -->
+    <div id="privacyModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="privacyTitle">
+        <div class="modal-content" role="document">
+            <div class="modal-header">
+                <div id="privacyTitle" class="modal-title">Privacy Policy</div>
+                <button type="button" class="btn-close" id="privacyClose" aria-label="Close">×</button>
+            </div>
+            <div class="modal-body">
+                We value your privacy. This system only collects the information necessary to authenticate your account and provide access. By signing in, you agree to our responsible data handling practices.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-primary" id="privacyOk">Got it</button>
             </div>
         </div>
     </div>

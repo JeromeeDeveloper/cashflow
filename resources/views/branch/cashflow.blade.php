@@ -201,14 +201,14 @@
                 });
 
                 fetch(`{{ route('branch.cashflows.index') }}?${params}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
                             lastLoadedCashflows = Array.isArray(data.data) ? data.data : [];
                             updateTable(lastLoadedCashflows);
-                        }
-                    })
-                    .catch(error => {
+                    }
+                })
+                .catch(error => {
                         console.error('Error loading cashflows:', error);
                         showAlert('Error loading cashflows', 'error');
                     });
@@ -234,11 +234,11 @@
                             <td colspan="${4 + period}" class="text-center text-muted py-4">
                                 <i class="bi bi-inbox fs-1 d-block mb-3"></i>
                                 No cash flow entries found
-                            </td>
-                        </tr>
-                    `;
-                    return;
-                }
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
 
                 // Split by type
                 const receipts = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'receipts');
@@ -422,8 +422,8 @@
                         const id = this.getAttribute('data-id');
                         const newValue = parseFloat(this.value) || 0;
                         updateProjectionPercentage(id, newValue);
-                    });
-                });
+            });
+        });
             }
 
             function updateProjectionPercentage(id, newValue) {
@@ -476,16 +476,16 @@
                     .then(blob => {
                         // Create blob URL and download
                         const url = window.URL.createObjectURL(blob);
-                        const link = document.createElement('a');
+            const link = document.createElement('a');
                         link.href = url;
 
                         const pVal = parseInt(periodValue);
                         const periodText = pVal <= 12 ? `${pVal}months` : `${pVal}years`;
                         link.download = `cashflow_${monthNames[parseInt(month) - 1]}_${year}_${periodText}.xlsx`;
 
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
 
                         // Clean up blob URL
                         window.URL.revokeObjectURL(url);

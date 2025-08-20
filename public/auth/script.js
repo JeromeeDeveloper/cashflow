@@ -17,6 +17,7 @@ class ElegantPortfolioLoginForm {
         this.setupPasswordToggle();
         this.setupSocialButtons();
         this.showServerErrors();
+        this.setupPrivacyModal();
     }
 
     bindEvents() {
@@ -29,6 +30,39 @@ class ElegantPortfolioLoginForm {
         // Add placeholder attribute for label animations
         this.emailInput.setAttribute('placeholder', ' ');
         this.passwordInput.setAttribute('placeholder', ' ');
+    }
+
+    setupPrivacyModal() {
+        const link = document.querySelector('.signup-link');
+        const modal = document.getElementById('privacyModal');
+        const btnClose = document.getElementById('privacyClose');
+        const btnOk = document.getElementById('privacyOk');
+
+        if (!link || !modal) return;
+
+        const openModal = () => {
+            modal.setAttribute('aria-hidden', 'false');
+        };
+
+        const closeModal = () => {
+            modal.setAttribute('aria-hidden', 'true');
+        };
+
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            openModal();
+        });
+
+        btnClose && btnClose.addEventListener('click', closeModal);
+        btnOk && btnOk.addEventListener('click', closeModal);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
     }
 
     setupPasswordToggle() {

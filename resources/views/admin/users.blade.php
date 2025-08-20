@@ -39,7 +39,7 @@
                     <button id="btnAdd" class="btn btn-primary">
                         <i class="bi bi-person-plus me-2"></i>Add New User
                     </button>
-                   
+
                 </div>
             </div>
 
@@ -290,13 +290,13 @@
                                             @endforeach
                                         </select>
                                     </div>
-                                    <div class="col-md-6">
+                                    {{-- <div class="col-md-6">
                                         <label for="status" class="form-label">Status</label>
                                         <select class="form-select" id="status" name="status">
                                             <option value="active">Active</option>
                                             <option value="inactive">Inactive</option>
                                         </select>
-                                    </div>
+                                    </div> --}}
                                     <div class="col-md-6">
                                         <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
                                         <input type="password" class="form-control" id="password" name="password" required>
@@ -404,10 +404,14 @@
             // CSRF token for Laravel
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
+            // Store the original form content at the very beginning
+            const userModalElement = document.getElementById('userModal');
+            const originalFormContent = userModalElement.querySelector('.modal-body').innerHTML;
+
             // Initialize DataTable
             const usersTable = document.querySelector('#table-users');
             if (usersTable && window.simpleDatatables) {
-                new simpleDatatables.DataTable(usersTable);
+                const dataTable = new simpleDatatables.DataTable(usersTable);
             }
 
             // Modal instances
@@ -446,33 +450,50 @@
                 saveUser();
             });
 
-            // View buttons
-            document.querySelectorAll('.btn-view').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
+            // Use event delegation for dynamic buttons (works with pagination)
+            const tableBody = document.querySelector('#table-users tbody');
+
+            // Combined event delegation for all action buttons
+            tableBody.addEventListener('click', function(e) {
+                // Check if the clicked element or its parent has the button class
+                const button = e.target.closest('.btn-view, .btn-edit, .btn-delete');
+                if (!button) return;
+
+                const id = button.getAttribute('data-id');
+
+                if (button.classList.contains('btn-view')) {
                     loadUserForView(id);
                     viewModal.show();
-                });
-            });
-
-            // Edit buttons
-            document.querySelectorAll('.btn-edit').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
+                } else if (button.classList.contains('btn-edit')) {
                     loadUserForEdit(id);
                     userModal.show();
-                });
-            });
-
-            // Delete buttons
-            document.querySelectorAll('.btn-delete').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const id = this.getAttribute('data-id');
-                    const userName = this.closest('tr').querySelector('h6').textContent;
+                } else if (button.classList.contains('btn-delete')) {
+                    const userName = button.closest('tr').querySelector('h6').textContent;
                     document.getElementById('deleteUserName').textContent = userName;
                     document.getElementById('confirmDelete').setAttribute('data-id', id);
                     deleteModal.show();
-                });
+                }
+            });
+
+            // Alternative approach: Use document-level event delegation as fallback
+            document.addEventListener('click', function(e) {
+                const button = e.target.closest('.btn-view, .btn-edit, .btn-delete');
+                if (!button || !tableBody.contains(button)) return;
+
+                const id = button.getAttribute('data-id');
+
+                if (button.classList.contains('btn-view')) {
+                    loadUserForView(id);
+                    viewModal.show();
+                } else if (button.classList.contains('btn-edit')) {
+                    loadUserForEdit(id);
+                    userModal.show();
+                } else if (button.classList.contains('btn-delete')) {
+                    const userName = button.closest('tr').querySelector('h6').textContent;
+                    document.getElementById('deleteUserName').textContent = userName;
+                    document.getElementById('confirmDelete').setAttribute('data-id', id);
+                    deleteModal.show();
+                }
             });
 
             // Confirm delete
@@ -493,8 +514,26 @@
 
             function resetForm() {
                 userForm.reset();
-                branchField.style.display = 'none';
-                branchSelect.required = false;
+
+                // Get fresh references to form elements
+                const branchFieldEl = document.getElementById('branchField');
+                const branchSelectEl = document.getElementById('branch_id');
+
+                if (branchFieldEl) branchFieldEl.style.display = 'none';
+                if (branchSelectEl) branchSelectEl.required = false;
+
+                // Reset password fields
+                const passwordField = document.getElementById('password');
+                const passwordConfirmField = document.getElementById('password_confirmation');
+
+                if (passwordField) {
+                    passwordField.required = true;
+                    passwordField.placeholder = 'Enter password';
+                }
+                if (passwordConfirmField) {
+                    passwordConfirmField.required = true;
+                    passwordConfirmField.placeholder = 'Confirm password';
+                }
             }
 
             function saveUser() {
@@ -612,54 +651,87 @@
             function loadUserForEdit(id) {
                 // Show loading state
                 const modalBody = document.querySelector('#userModal .modal-body');
-                const originalContent = modalBody.innerHTML;
+
+                // Use the original form content stored at startup
+                const formTemplate = originalFormContent;
+
                 modalBody.innerHTML = '<div class="text-center py-4"><i class="bi bi-hourglass-split fs-1"></i><p class="mt-2">Loading user data...</p></div>';
+
 
                 fetch(`/admin/users/${id}`)
                     .then(response => {
+
                         if (!response.ok) {
-                            throw new Error('User not found');
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                         }
                         return response.json();
                     })
                     .then(data => {
+
                         if (data.success) {
                             const user = data.data;
                             document.getElementById('userModalLabel').textContent = 'Edit User';
                             userForm.setAttribute('data-user-id', user.id);
 
                             // Restore original form content
-                            modalBody.innerHTML = originalContent;
+                            modalBody.innerHTML = formTemplate;
 
-                            // Populate form fields
-                            document.getElementById('name').value = user.name;
-                            document.getElementById('email').value = user.email;
-                            document.getElementById('phone').value = user.phone || '';
-                            document.getElementById('role').value = user.role;
-                            document.getElementById('status').value = user.status;
-
-                            if (user.role === 'branch') {
-                                branchField.style.display = 'block';
-                                branchSelect.required = true;
-                                document.getElementById('branch_id').value = user.branch_id || '';
-                            } else {
-                                branchField.style.display = 'none';
-                                branchSelect.required = false;
-                            }
-
-                            // Remove password requirement for editing
-                            document.getElementById('password').required = false;
-                            document.getElementById('password_confirmation').required = false;
-                            document.getElementById('password').placeholder = 'Leave blank to keep current password';
-                            document.getElementById('password_confirmation').placeholder = 'Leave blank to keep current password';
+                            // Wait a moment for DOM to be ready, then populate fields
+                            setTimeout(() => {
+                                populateFormFields(user);
+                            }, 10);
                         } else {
                             modalBody.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Error loading user data</p></div>';
                         }
                     })
                     .catch(error => {
                         console.error('Error loading user:', error);
-                        modalBody.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Error loading user data</p></div>';
+                        modalBody.innerHTML = `<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Error loading user data</p><small class="text-muted">${error.message}</small></div>`;
                     });
+            }
+
+                        function populateFormFields(user) {
+                // Get fresh references to all form elements
+                const nameField = document.getElementById('name');
+                const emailField = document.getElementById('email');
+                const phoneField = document.getElementById('phone');
+                const roleField = document.getElementById('role');
+                const passwordField = document.getElementById('password');
+                const passwordConfirmField = document.getElementById('password_confirmation');
+                const branchFieldEl = document.getElementById('branchField');
+                const branchSelectEl = document.getElementById('branch_id');
+
+                // Check if all required elements exist
+                if (!nameField || !emailField || !phoneField || !roleField || !passwordField || !passwordConfirmField) {
+                    console.error('Required form elements not found');
+                    const modalBody = document.querySelector('#userModal .modal-body');
+                    modalBody.innerHTML = '<div class="text-center py-4 text-danger"><i class="bi bi-exclamation-triangle fs-1"></i><p class="mt-2">Error: Form elements not found</p></div>';
+                    return;
+                }
+
+                // Populate form fields
+                nameField.value = user.name;
+                emailField.value = user.email;
+                phoneField.value = user.phone || '';
+                roleField.value = user.role;
+
+                // Handle branch field visibility and value
+                if (user.role === 'branch') {
+                    if (branchFieldEl) branchFieldEl.style.display = 'block';
+                    if (branchSelectEl) {
+                        branchSelectEl.required = true;
+                        branchSelectEl.value = user.branch_id || '';
+                    }
+                } else {
+                    if (branchFieldEl) branchFieldEl.style.display = 'none';
+                    if (branchSelectEl) branchSelectEl.required = false;
+                }
+
+                                // Configure password fields for editing
+                passwordField.required = false;
+                passwordConfirmField.required = false;
+                passwordField.placeholder = 'Leave blank to keep current password';
+                passwordConfirmField.placeholder = 'Leave blank to keep current password';
             }
 
             function deleteUser(id) {

@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class UsersController extends Controller
@@ -35,7 +36,7 @@ class UsersController extends Controller
             'phone' => 'nullable|string|max:20',
             'role' => 'required|in:admin,head,branch',
             'branch_id' => 'nullable|exists:branches,id',
-            'status' => 'required|in:active,inactive',
+            'status' => 'nullable|in:active,inactive',
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -56,13 +57,23 @@ class UsersController extends Controller
         }
 
         try {
+            // Debug: Log the request data
+            Log::info('Creating user with data:', [
+                'name' => $request->name,
+                'email' => $request->email,
+                'phone' => $request->phone,
+                'role' => $request->role,
+                'branch_id' => $request->branch_id,
+                'status' => $request->status ?? 'inactive',
+            ]);
+
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
                 'phone' => $request->phone,
                 'role' => $request->role,
                 'branch_id' => $request->branch_id,
-                'status' => $request->status,
+                'status' => $request->status ?? 'inactive', // Default to inactive for new users
                 'password' => Hash::make($request->password),
             ]);
 
@@ -84,12 +95,32 @@ class UsersController extends Controller
      */
     public function show(User $user): JsonResponse
     {
-        $user->load('branch');
+        try {
+            $user->load('branch');
 
-        return response()->json([
-            'success' => true,
-            'data' => $user
-        ]);
+            Log::info('Loading user for edit/view:', [
+                'user_id' => $user->id,
+                'user_name' => $user->name,
+                'user_email' => $user->email,
+                'user_status' => $user->status,
+                'has_branch' => $user->branch ? true : false
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data' => $user
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error loading user:', [
+                'user_id' => $user->id ?? 'unknown',
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error loading user data: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
@@ -103,7 +134,7 @@ class UsersController extends Controller
             'phone' => 'nullable|string|max:20',
             'role' => 'required|in:admin,head,branch',
             'branch_id' => 'nullable|exists:branches,id',
-            'status' => 'required|in:active,inactive',
+            'status' => 'nullable|in:active,inactive', // Made nullable since form field is commented out
             'password' => 'nullable|string|min:8|confirmed',
         ]);
 
@@ -130,7 +161,8 @@ class UsersController extends Controller
                 'phone' => $request->phone,
                 'role' => $request->role,
                 'branch_id' => $request->branch_id,
-                'status' => $request->status,
+                // Don't update status if not provided (since form field is commented out)
+                // Status will be managed automatically by login/logout events
             ];
 
             // Only update password if provided

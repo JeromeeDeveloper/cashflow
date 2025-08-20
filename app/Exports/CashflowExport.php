@@ -78,8 +78,11 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 'period' => $this->period,
             ]);
 
-            // Get cashflow data with relationships
-            $query = Cashflow::with(['glAccount', 'branch']);
+            // Get cashflow data with relationships and only selected GL accounts
+            $query = Cashflow::with(['glAccount', 'branch'])
+                ->whereHas('glAccount', function ($q) {
+                    $q->where('is_selected', 1);
+                });
 
             // Apply filters only if they match existing data
             if (!is_null($this->year)) {
@@ -98,6 +101,9 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             if ($all->count() === 0 && !is_null($this->year)) {
                 Log::info('No data found with month filter, trying year only');
                 $query = Cashflow::with(['glAccount', 'branch'])
+                    ->whereHas('glAccount', function ($q) {
+                        $q->where('is_selected', 1);
+                    })
                     ->where('year', $this->year);
                 if (!is_null($this->branchId)) {
                     $query->where('branch_id', $this->branchId);
@@ -108,7 +114,10 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             // If still no data, get all available data
             if ($all->count() === 0) {
                 Log::info('No data found with year filter, getting all available data');
-                $query = Cashflow::with(['glAccount', 'branch']);
+                $query = Cashflow::with(['glAccount', 'branch'])
+                    ->whereHas('glAccount', function ($q) {
+                        $q->where('is_selected', 1);
+                    });
                 if (!is_null($this->branchId)) {
                     $query->where('branch_id', $this->branchId);
                 }

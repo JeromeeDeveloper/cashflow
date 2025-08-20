@@ -72,7 +72,7 @@
                                             @endfor
                                         </select>
                                     </div>
-                                    <div class="input-group" style="max-width: 150px;">
+                                    {{-- <div class="input-group" style="max-width: 150px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-check-circle"></i></span>
                                         <select id="status_filter" class="form-select">
                                             <option value="">All Status</option>
@@ -81,7 +81,7 @@
                                             <option value="processed">Processed</option>
                                             <option value="error">Error</option>
                                         </select>
-                                    </div>
+                                    </div> --}}
                                 </div>
                             </div>
                             <div class="card-body">

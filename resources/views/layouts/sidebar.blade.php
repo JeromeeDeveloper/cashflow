@@ -54,12 +54,12 @@
                             <span>File Upload</span>
                         </a>
                     </li>
-                    <li class="sidebar-item {{ request()->routeIs('head.gl-accounts*') ? 'active' : '' }}">
+                    {{-- <li class="sidebar-item {{ request()->routeIs('head.gl-accounts*') ? 'active' : '' }}">
                         <a href="{{ route('head.gl-accounts') }}" class="sidebar-link">
                             <i class="bi bi-journal-text"></i>
                             <span>GL Accounts</span>
                         </a>
-                    </li>
+                    </li> --}}
                     <li class="sidebar-item {{ request()->routeIs('head.cashflow*') ? 'active' : '' }}">
                         <a href="{{ route('head.cashflow') }}" class="sidebar-link">
                             <i class="bi bi-cash-stack"></i>
