@@ -110,7 +110,9 @@ Route::prefix('branch')->name('branch.')->middleware(['auth', 'role:branch'])->g
     Route::put('/cashflows/{cashflow}', [BranchCashflowController::class, 'update'])->name('cashflows.update');
     Route::delete('/cashflows/{cashflow}', [BranchCashflowController::class, 'destroy'])->name('cashflows.destroy');
     Route::get('/cashflows/summary', [BranchCashflowController::class, 'getSummary'])->name('cashflows.summary');
-    Route::get('/branch/cashflows/export', [BranchCashflowController::class, 'export'])->name('branch.cashflows.export');
+    Route::patch('/cashflows/{cashflow}/projection', [BranchCashflowController::class, 'updateProjectionPercentage'])->name('cashflows.update-projection');
+    // Use path relative to group; final URL: /branch/cashflows/export. Name is 'cashflows.export' so with group prefix it's 'branch.cashflows.export'
+    Route::get('/branch/cashflows/export', [BranchCashflowController::class, 'export'])->name('cashflows.export');
 
     // Branch File upload routes (branch-scoped)
     Route::get('/files', [BranchFileController::class, 'getFiles'])->name('files.index');

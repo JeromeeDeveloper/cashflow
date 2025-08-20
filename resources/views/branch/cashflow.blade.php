@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/bootstrap-icons/bootstrap-icons.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/vendors/simple-datatables/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/vendors/sweetalert2/sweetalert2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">
     <link rel="shortcut icon" href="{{ asset('assets/images/favicon.svg') }}" type="image/x-icon">
 </head>
@@ -49,118 +50,30 @@
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
                                 <h4 class="mb-0">Cash Flow Summary</h4>
                                 <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <!-- Table Filters -->
                                     <div class="input-group" style="max-width: 280px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
-                                        <input type="month" id="reporting_period" class="form-control" value="{{ date('Y-m') }}">
+                                        <input type="month" id="table_start_period" class="form-control" value="{{ date('Y-m') }}">
                                     </div>
-                                    <button id="btnRefresh" class="btn btn-outline-secondary">
-                                        <i class="bi bi-arrow-clockwise me-2"></i>Refresh
-                                    </button>
-                                    <button id="btnExport" class="btn btn-success">
-                                        <i class="bi bi-download me-2"></i>Export
-                                    </button>
-                                    <span class="badge rounded-pill bg-light text-dark border d-flex align-items-center px-3" data-bs-toggle="tooltip" data-bs-placement="top" title="This view shows all cashflow data for your branch.">
-                                        <i class="bi bi-eye-fill text-info me-2"></i>
-                                        Read-Only View
-                                    </span>
+                                    <select id="table_period" class="form-select" style="max-width: 150px;">
+                                        <option value="3">3 Months</option>
+                                        <option value="6">6 Months</option>
+                                        <option value="12">12 Months</option>
+                                        <option value="36">3 Years</option>
+                                        <option value="60">5 Years</option>
+                                    </select>
+                                    <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export Cashflow Planning Report</button>
                                 </div>
                             </div>
                             <div class="card-body">
+                                <div class="mb-2 small text-muted" id="selectionSummary"></div>
                                 <div class="table-responsive">
                                     <table class="table table-hover" id="table-cashflow">
-                                        <thead>
-                                            <tr>
-                                                <th>Account Code</th>
-                                                <th>Account Name</th>
-                                                <th>Account Type</th>
-                                                <th class="text-end">Actual Amount</th>
-                                                <th class="text-end">Total</th>
-                                                <th>Period</th>
-                                                <th class="text-end">Actions</th>
-                                            </tr>
+                                        <thead id="cf-thead">
+                                            <!-- Dynamic header will be built by JS to mirror Excel export -->
                                         </thead>
                                         <tbody>
-                                            @forelse($cashflows ?? [] as $cashflow)
-                                                <tr data-id="{{ $cashflow->id }}">
-                                                    <td>{{ $cashflow->glAccount->account_code ?? 'N/A' }}</td>
-                                                    <td>{{ $cashflow->glAccount->account_name ?? $cashflow->account_name ?? 'N/A' }}</td>
-                                                    <td>
-                                                        @switch($cashflow->account_type)
-                                                            @case('Asset')
-                                                                <span class="badge bg-primary">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Liability')
-                                                                <span class="badge bg-danger">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Equity')
-                                                                <span class="badge bg-success">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Income')
-                                                                <span class="badge bg-info">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @case('Expense')
-                                                                <span class="badge bg-warning">{{ $cashflow->account_type }}</span>
-                                                                @break
-                                                            @default
-                                                                <span class="badge bg-secondary">{{ $cashflow->account_type ?? 'N/A' }}</span>
-                                                        @endswitch
-                                                    </td>
-                                                    <td>
-                                                        @switch($cashflow->category)
-                                                            @case('Receipt')
-                                                                <span class="badge bg-success">{{ $cashflow->category }}</span>
-                                                                @break
-                                                            @case('Disbursement')
-                                                                <span class="badge bg-danger">{{ $cashflow->category }}</span>
-                                                                @break
-                                                            @default
-                                                                <span class="badge bg-secondary">{{ $cashflow->category ?? 'N/A' }}</span>
-                                                        @endswitch
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <span class="fw-medium text-primary">
-                                                            {{ $cashflow->actual_amount ? number_format($cashflow->actual_amount, 2) : '0.00' }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <span class="text-muted">
-                                                            {{ $cashflow->projection_percentage ? number_format($cashflow->projection_percentage, 2) . '%' : '0.00%' }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <span class="fw-medium text-success">
-                                                            {{ $cashflow->projected_amount ? number_format($cashflow->projected_amount, 2) : '0.00' }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <span class="fw-bold text-dark">
-                                                            {{ $cashflow->total ? number_format($cashflow->total, 2) : '0.00' }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="text-end">
-                                                        <div class="btn-group" role="group">
-                                                            <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="{{ $cashflow->id }}" title="View Details">
-                                                                <i class="bi bi-eye"></i>
-                                                            </button>
-                                                            <button type="button" class="btn btn-sm btn-outline-warning btn-edit" data-id="{{ $cashflow->id }}" title="Edit Entry">
-                                                                <i class="bi bi-pencil"></i>
-                                                            </button>
-                                                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="{{ $cashflow->id }}" title="Delete Entry">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="9" class="text-center text-muted py-4">
-                                                        <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                                                        No cash flow data found
-                                                        <br>
-                                                        <small>Upload cash flow files to see data here</small>
-                                                    </td>
-                                                </tr>
-                                            @endforelse
+                                            <!-- Table content will be populated dynamically -->
                                         </tbody>
                                     </table>
                                 </div>
@@ -172,399 +85,449 @@
         </div>
     </div>
 
-    <!-- View Cash Flow Details Modal -->
-    <div class="modal fade" id="viewModal" tabindex="-1" aria-labelledby="viewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="viewModalLabel">Cash Flow Entry Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="cashflowDetails">
-                        <!-- Cash flow details will be loaded here -->
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Cash Flow Entry Modal -->
-    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">Edit Cash Flow Entry</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <form id="editForm">
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="edit_account_code" class="form-label">Account Code</label>
-                                    <input type="text" class="form-control" id="edit_account_code" readonly>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="edit_account_name" class="form-label">Account Name</label>
-                                    <input type="text" class="form-control" id="edit_account_name" readonly>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="edit_actual_amount" class="form-label">Actual Amount <span class="text-danger">*</span></label>
-                                    <input type="number" class="form-control" id="edit_actual_amount" name="actual_amount" step="0.01" min="0" required>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="edit_total" class="form-label">Total</label>
-                                    <input type="number" class="form-control" id="edit_total" name="total" step="0.01" min="0">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-check-circle me-2"></i>Update Entry
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <script src="{{ asset('assets/js/bootstrap.js') }}"></script>
     <script src="{{ asset('assets/vendors/perfect-scrollbar/perfect-scrollbar.min.js') }}"></script>
+    <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ asset('assets/vendors/simple-datatables/simple-datatables.js') }}"></script>
-    <script src="{{ asset('assets/js/app.js') }}"></script>
+    <script src="{{ asset('assets/vendors/sweetalert2/sweetalert2.all.min.js') }}"></script>
+    <script src="{{ asset('assets/js/main.js') }}"></script>
+
+    <!-- Pass initial data from controller to JavaScript -->
+    <script>
+        const initialCashflows = @json($cashflows ?? []);
+        console.log('Initial cashflows from controller:', initialCashflows);
+    </script>
 
     <script>
-        // Initialize DataTable
-        const table = new simpleDatatables.DataTable("#table-cashflow", {
-            searchable: true,
-            fixedHeight: true,
-            perPage: 25
-        });
+        document.addEventListener('DOMContentLoaded', function() {
+            // CSRF token for Laravel
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
-        // Load cash flows on page load - DISABLED to prevent flash
-        // document.addEventListener('DOMContentLoaded', function() {
-        //     loadCashflows();
-        // });
+            // Enable Bootstrap tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl);
+            });
 
-        // Refresh button - simple page reload like head cashflow
-        document.getElementById('btnRefresh').addEventListener('click', function() {
-            location.reload();
-        });
+            // Build header and load initial data
+            buildTableHeader();
+            let lastLoadedCashflows = Array.isArray(initialCashflows) ? initialCashflows : [];
+            if (lastLoadedCashflows.length > 0) {
+                updateTable(lastLoadedCashflows);
+            } else {
+                loadCashflows();
+            }
 
-        // Export button
-        document.getElementById('btnExport').addEventListener('click', function() {
-            exportCashflows();
-        });
+            // Table filters
+            const tableStartPeriod = document.getElementById('table_start_period');
+            const tablePeriod = document.getElementById('table_period');
+            const btnExport = document.getElementById('btnExport');
 
-        // Period change - simple page reload like head cashflow
-        document.getElementById('reporting_period').addEventListener('change', function() {
-            // For now, just update the display without reloading
-            // This prevents the flash issue
-        });
+            if (tableStartPeriod) {
+                tableStartPeriod.addEventListener('change', function() {
+                    buildTableHeader();
+                    loadCashflows();
+                });
+            }
 
-        // Load cash flows
-        function loadCashflows() {
-            const period = document.getElementById('reporting_period').value;
-            const [year, month] = period.split('-');
+            if (tablePeriod) {
+                tablePeriod.addEventListener('change', function() {
+                    buildTableHeader();
+                    if (lastLoadedCashflows.length > 0) updateTable(lastLoadedCashflows);
+                });
+            }
 
-            // Show loading state
-            const tbody = document.querySelector('#table-cashflow tbody');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="9" class="text-center text-muted py-4">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
+            // Export button with SweetAlert
+            if (btnExport) {
+                btnExport.addEventListener('click', function() {
+                    showExportConfirmation();
+                });
+            }
+
+            function showExportConfirmation() {
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'];
+                const tableStartPeriod = document.getElementById('table_start_period');
+                const tablePeriod = document.getElementById('table_period');
+
+                if (!tableStartPeriod || !tablePeriod) {
+                    console.error('Required form elements not found');
+                    showAlert('Error: Required form elements not found', 'error');
+                    return;
+                }
+
+                const currentMonthValue = tableStartPeriod.value || '{{ date('Y-m') }}';
+                const [curYear, curMonth] = currentMonthValue.split('-');
+                const currentPeriod = tablePeriod.value || '3';
+
+                Swal.fire({
+                    title: 'Export Cash Flow Report',
+                    html: `
+                        <div class="text-start">
+                            <div class="mb-2">Start Period</div>
+                            <input type="month" id="export_start_period" class="form-control" value="${curYear}-${curMonth}">
+                            <div class="mt-3 mb-2">Period</div>
+                            <select id="export_period" class="form-select">
+                                <option value="3" ${currentPeriod==='3'?'selected':''}>3 Months</option>
+                                <option value="6" ${currentPeriod==='6'?'selected':''}>6 Months</option>
+                                <option value="12" ${currentPeriod==='12'?'selected':''}>12 Months</option>
+                                <option value="36" ${currentPeriod==='36'?'selected':''}>3 Years</option>
+                                <option value="60" ${currentPeriod==='60'?'selected':''}>5 Years</option>
+                            </select>
                         </div>
-                        <br>
-                        <small class="mt-2 d-block">Loading cash flow data...</small>
-                    </td>
-                </tr>
-            `;
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d',
+                    confirmButtonText: '<i class="bi bi-download me-2"></i>Export',
+                    cancelButtonText: 'Cancel',
+                    showLoaderOnConfirm: true,
+                    preConfirm: () => exportCashflowsFromModal()
+                });
+            }
 
-            fetch(`/branch/cashflows?year=${year}&month=${month}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        displayCashflows(data.cashflows);
-                    } else {
-                        throw new Error(data.message || 'Failed to load data');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
+            function loadCashflows() {
+                const monthInput = document.getElementById('table_start_period');
+                if (!monthInput) {
+                    console.error('table_start_period element not found');
+                    return;
+                }
+                const [year, month] = monthInput.value.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+                const params = new URLSearchParams({
+                    year: year,
+                    month: monthNames[parseInt(month) - 1]
+                });
+
+                fetch(`{{ route('branch.cashflows.index') }}?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            lastLoadedCashflows = Array.isArray(data.data) ? data.data : [];
+                            updateTable(lastLoadedCashflows);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error loading cashflows:', error);
+                        showAlert('Error loading cashflows', 'error');
+                    });
+            }
+
+            function updateTable(cashflows) {
+                const tbody = document.querySelector('#table-cashflow tbody');
+                const tablePeriod = document.getElementById('table_period');
+
+                if (!tbody || !tablePeriod) {
+                    console.error('Required elements not found in updateTable');
+                    return;
+                }
+
+                tbody.innerHTML = '';
+
+                const period = parseInt(tablePeriod.value || '3', 10);
+                const { labels } = getPeriodLabels();
+
+                if (!Array.isArray(cashflows) || cashflows.length === 0) {
                     tbody.innerHTML = `
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
-                                <i class="bi bi-exclamation-triangle fs-1 text-warning d-block mb-3"></i>
-                                Failed to load cash flow data
-                                <br>
-                                <small>${error.message}</small>
+                            <td colspan="${4 + period}" class="text-center text-muted py-4">
+                                <i class="bi bi-inbox fs-1 d-block mb-3"></i>
+                                No cash flow entries found
                             </td>
                         </tr>
                     `;
-                });
-        }
-
-                // Display cash flows
-        function displayCashflows(cashflows) {
-            const tbody = document.querySelector('#table-cashflow tbody');
-
-            if (!cashflows || cashflows.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
-                            <i class="bi bi-inbox fs-1 d-block mb-3"></i>
-                            No cash flow data found for the selected period
-                            <br>
-                            <small>Try selecting a different period or upload cash flow files</small>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
-
-            tbody.innerHTML = cashflows.map(cashflow => `
-                <tr data-id="${cashflow.id}">
-                    <td>${cashflow.gl_account?.account_code || 'N/A'}</td>
-                    <td>${cashflow.gl_account?.account_name || 'N/A'}</td>
-                    <td>
-                        ${getAccountTypeBadge(cashflow.gl_account?.account_type || 'single')}
-                    </td>
-                    <td class="text-end">
-                        <span class="fw-medium text-primary">
-                            ${cashflow.actual_amount ? parseFloat(cashflow.actual_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
-                        </span>
-                    </td>
-                    <td class="text-end">
-                        <span class="fw-bold text-dark">
-                            ${cashflow.total ? parseFloat(cashflow.total).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}
-                        </span>
-                    </td>
-                    <td>${cashflow.period || 'N/A'}</td>
-                    <td class="text-end">
-                        <div class="btn-group" role="group">
-                            <button type="button" class="btn btn-sm btn-outline-primary btn-view" data-id="${cashflow.id}" title="View Details">
-                                <i class="bi bi-eye"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-warning btn-edit" data-id="${cashflow.id}" title="Edit Entry">
-                                <i class="bi bi-pencil"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-outline-danger btn-delete" data-id="${cashflow.id}" title="Delete Entry">
-                                <i class="bi bi-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>
-            `).join('');
-        }
-
-        // Get account type badge
-        function getAccountTypeBadge(accountType) {
-            const badges = {
-                'parent': '<span class="badge bg-primary">Parent</span>',
-                'child': '<span class="badge bg-success">Child</span>',
-                'single': '<span class="badge bg-info">Single</span>'
-            };
-            return badges[accountType] || '<span class="badge bg-secondary">' + (accountType || 'N/A') + '</span>';
-        }
-
-
-
-        // View cash flow details
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.btn-view')) {
-                const cashflowId = e.target.closest('.btn-view').getAttribute('data-id');
-                loadCashflowDetails(cashflowId);
-            }
-        });
-
-        function loadCashflowDetails(cashflowId) {
-            fetch(`/branch/cashflows/${cashflowId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const cashflow = data.cashflow;
-                        document.getElementById('cashflowDetails').innerHTML = `
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Account Code:</strong> ${cashflow.gl_account?.account_code || 'N/A'}</p>
-                                    <p><strong>Account Name:</strong> ${cashflow.gl_account?.account_name || 'N/A'}</p>
-                                    <p><strong>Account Type:</strong> ${getAccountTypeBadge(cashflow.gl_account?.account_type || 'single')}</p>
-                                    <p><strong>Period:</strong> ${cashflow.period || 'N/A'}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>Actual Amount:</strong> <span class="fw-medium text-primary">${cashflow.actual_amount ? parseFloat(cashflow.actual_amount).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}</span></p>
-                                    <p><strong>Total:</strong> <span class="fw-bold text-dark">${cashflow.total ? parseFloat(cashflow.total).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '0.00'}</span></p>
-                                    <p><strong>Year:</strong> ${cashflow.year || 'N/A'}</p>
-                                    <p><strong>Month:</strong> ${cashflow.month || 'N/A'}</p>
-                                </div>
-                            </div>
-                            <hr>
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <p><strong>Created:</strong> ${cashflow.created_at ? new Date(cashflow.created_at).toLocaleDateString() : 'N/A'}</p>
-                                    <p><strong>Updated:</strong> ${cashflow.updated_at ? new Date(cashflow.updated_at).toLocaleDateString() : 'N/A'}</p>
-                                </div>
-                                <div class="col-md-6">
-                                    <p><strong>File Source:</strong> ${cashflow.cashflow_file?.original_name || 'N/A'}</p>
-                                    <p><strong>Branch:</strong> ${cashflow.branch?.name || 'N/A'}</p>
-                                </div>
-                            </div>
-                        `;
-
-                        const modal = new bootstrap.Modal(document.getElementById('viewModal'));
-                        modal.show();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to load cash flow details');
-                });
-        }
-
-        // Edit cash flow entry
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.btn-edit')) {
-                const cashflowId = e.target.closest('.btn-edit').getAttribute('data-id');
-                loadCashflowForEdit(cashflowId);
-            }
-        });
-
-        function loadCashflowForEdit(cashflowId) {
-            fetch(`/branch/cashflows/${cashflowId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        const cashflow = data.cashflow;
-
-                        // Populate form fields
-                        document.getElementById('edit_account_code').value = cashflow.gl_account?.account_code || '';
-                        document.getElementById('edit_account_name').value = cashflow.gl_account?.account_name || '';
-                        document.getElementById('edit_actual_amount').value = cashflow.actual_amount || '';
-                        document.getElementById('edit_total').value = cashflow.total || '';
-
-                        // Set form action
-                        document.getElementById('editForm').setAttribute('data-id', cashflowId);
-
-                        // Show modal
-                        const modal = new bootstrap.Modal(document.getElementById('editModal'));
-                        modal.show();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to load cash flow data for editing');
-                });
-        }
-
-        // Update cash flow entry
-        document.getElementById('editForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const cashflowId = this.getAttribute('data-id');
-            const formData = new FormData(this);
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-
-            // Show loading state
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Updating...';
-
-            fetch(`/branch/cashflows/${cashflowId}`, {
-                method: 'PUT',
-                headers: {
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(Object.fromEntries(formData))
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
-                    modal.hide();
-
-                    // Show success message
-                    alert('Cash flow entry updated successfully!');
-
-                    // Reload data
-                    loadCashflows();
-                } else {
-                    throw new Error(data.message || 'Update failed');
+                    return;
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Failed to update cash flow entry: ' + error.message);
-            })
-            .finally(() => {
-                // Reset button state
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
-        });
 
-        // Delete cash flow entry
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.btn-delete')) {
-                const cashflowId = e.target.closest('.btn-delete').getAttribute('data-id');
-                deleteCashflow(cashflowId);
-            }
-        });
+                // Split by type
+                const receipts = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'receipts');
+                const disbursements = cashflows.filter(c => (c.cashflow_type || '').toLowerCase() === 'disbursements');
 
-        function deleteCashflow(cashflowId) {
-            if (confirm('Are you sure you want to delete this cash flow entry? This action cannot be undone.')) {
-                fetch(`/branch/cashflows/${cashflowId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                // Beginning balance = sum of all receipts actual_amount
+                const beginningBalance = receipts.reduce((sum, c) => sum + (parseFloat(c.actual_amount) || 0), 0);
+
+                // Helper to build a row
+                const makeRow = (cells) => `<tr>${cells.join('')}</tr>`;
+                const th = (content, extra='') => `<th ${extra}>${content}</th>`;
+                const td = (content, cls='') => `<td class="${cls}">${content}</td>`;
+
+                // Row: CASH BEGINNING BALANCE
+                const beginningCells = [
+                    td('CASH BEGINNING BALANCE'),
+                    td(formatNumber(beginningBalance), 'text-end'),
+                    td('-', 'text-end')
+                ];
+                for (let i = 0; i < period; i++) beginningCells.push(td(formatNumber(beginningBalance), 'text-end'));
+                beginningCells.push(td(formatNumber(beginningBalance * period), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(beginningCells));
+
+                // Section: ADD: RECEIPTS
+                const sectionEmpty = new Array(period + 3).fill(td('-', 'text-end')).join('');
+                tbody.insertAdjacentHTML('beforeend', makeRow([
+                    td('ADD: RECEIPTS'),
+                    td('-', 'text-end'),
+                    td('-', 'text-end'),
+                    ...Array.from({length: period}, () => td('-', 'text-end')),
+                    td('-', 'text-end')
+                ]));
+
+                // Totals per period
+                const receiptsTotals = Array.from({length: period}, () => 0);
+                let receiptsGrand = 0;
+
+                // Receipt rows
+                receipts.forEach(c => {
+                    const name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
+                    const actual = parseFloat(c.actual_amount) || 0;
+                    const proj = parseFloat(c.projection_percentage) || 0;
+                    const inputsCell = `<input type="number" class="form-control form-control-sm text-end projection-input" value="${proj}" min="0" max="100" step="0.01" data-id="${c.id}" style="width: 80px;">`;
+
+                    const projections = [];
+                    let current = actual;
+                    for (let i = 0; i < period; i++) {
+                        current = current * (1 + (proj / 100));
+                        projections.push(current);
+                        receiptsTotals[i] += current;
                     }
+                    const sumProj = projections.reduce((a,b) => a+b, 0);
+                    receiptsGrand += sumProj;
+
+                    const cells = [
+                        td(name),
+                        td(formatNumber(actual), 'text-end'),
+                        td(inputsCell, 'text-end')
+                    ];
+                    projections.forEach(v => cells.push(td(formatNumber(v), 'text-end')));
+                    cells.push(td(formatNumber(sumProj), 'text-end'));
+                    tbody.insertAdjacentHTML('beforeend', makeRow(cells));
+                });
+
+                // TOTAL CASH AVAILABLE
+                const tcaCells = [ td('TOTAL CASH AVAILABLE'), td(formatNumber(beginningBalance), 'text-end'), td('-', 'text-end') ];
+                for (let i = 0; i < period; i++) tcaCells.push(td(formatNumber(beginningBalance + receiptsTotals[i]), 'text-end'));
+                tcaCells.push(td(formatNumber(beginningBalance * period + receiptsGrand), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(tcaCells));
+
+                // Section: LESS: DISBURSEMENTS
+                tbody.insertAdjacentHTML('beforeend', makeRow([
+                    td('LESS: DISBURSEMENTS'),
+                    td('-', 'text-end'),
+                    td('-', 'text-end'),
+                    ...Array.from({length: period}, () => td('-', 'text-end')),
+                    td('-', 'text-end')
+                ]));
+
+                const disbTotals = Array.from({length: period}, () => 0);
+                let disbGrand = 0;
+
+                disbursements.forEach(c => {
+                    const name = (c.gl_account && c.gl_account.parent_id) ? `&gt; ${c.gl_account.account_name}` : (c.gl_account?.account_name || c.account_name || 'N/A');
+                    const actual = parseFloat(c.actual_amount) || 0;
+                    const proj = parseFloat(c.projection_percentage) || 0;
+                    const inputsCell = `<input type=\"number\" class=\"form-control form-control-sm text-end projection-input\" value=\"${proj}\" min=\"0\" max=\"100\" step=\"0.01\" data-id=\"${c.id}\" style=\"width: 80px;\">`;
+
+                    const projections = [];
+                    let current = actual;
+                    for (let i = 0; i < period; i++) {
+                        current = current * (1 + (proj / 100));
+                        projections.push(current);
+                        disbTotals[i] += current;
+                    }
+                    const sumProj = projections.reduce((a,b) => a+b, 0);
+                    disbGrand += sumProj;
+
+                    const cells = [
+                        td(name),
+                        td(formatNumber(actual), 'text-end'),
+                        td(inputsCell, 'text-end')
+                    ];
+                    projections.forEach(v => cells.push(td(formatNumber(v), 'text-end')));
+                    cells.push(td(formatNumber(sumProj), 'text-end'));
+                    tbody.insertAdjacentHTML('beforeend', makeRow(cells));
+                });
+
+                // TOTAL DISBURSEMENTS
+                const tdCells = [ td('TOTAL DISBURSEMENTS'), td(formatNumber(disbursements.reduce((s, c) => s + (parseFloat(c.actual_amount)||0), 0)), 'text-end'), td('-', 'text-end') ];
+                for (let i = 0; i < period; i++) tdCells.push(td(formatNumber(disbTotals[i]), 'text-end'));
+                tdCells.push(td(formatNumber(disbGrand), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(tdCells));
+
+                // CASH ENDING BALANCE (mirror export formula)
+                const cebCells = [ td('CASH ENDING BALANCE'), td(formatNumber(beginningBalance), 'text-end'), td('-', 'text-end') ];
+                for (let i = 0; i < period; i++) {
+                    const value = beginningBalance + (beginningBalance + receiptsTotals[i]) - disbTotals[i];
+                    cebCells.push(td(formatNumber(value), 'text-end'));
+                }
+                const cebTotal = (beginningBalance * period) + ((beginningBalance * period) + receiptsGrand) - disbGrand;
+                cebCells.push(td(formatNumber(cebTotal), 'text-end'));
+                tbody.insertAdjacentHTML('beforeend', makeRow(cebCells));
+
+                // Attach listeners for dynamic elements
+                attachEventListeners();
+            }
+
+            function getPeriodLabels() {
+                const monthInput = document.getElementById('table_start_period');
+                const exportPeriod = document.getElementById('table_period');
+
+                if (!monthInput || !exportPeriod) {
+                    console.error('Required form elements not found in getPeriodLabels');
+                    return { labels: ['January', 'February', 'March'], selectedLabel: 'January' };
+                }
+
+                const [yearStr, monthStr] = (monthInput.value || '').split('-');
+                const period = parseInt(exportPeriod.value || '3', 10);
+                const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                const startIndex = Math.max(0, (parseInt(monthStr, 10) || 1) - 1);
+                const labels = [];
+                for (let i = 0; i < period; i++) labels.push(months[(startIndex + i) % 12]);
+                const selectedLabel = months[startIndex];
+                return { labels, selectedLabel };
+            }
+
+            function buildTableHeader() {
+                const thead = document.getElementById('cf-thead');
+                const tablePeriod = document.getElementById('table_period');
+
+                if (!thead || !tablePeriod) {
+                    console.error('Required elements not found in buildTableHeader');
+                    return;
+                }
+
+                const exportPeriod = parseInt(tablePeriod.value || '3', 10);
+                const { labels, selectedLabel } = getPeriodLabels();
+
+                const topRow = document.createElement('tr');
+                topRow.innerHTML = `
+                    <th rowspan="2">PARTICULARS</th>
+                    <th rowspan="2" class="text-end">ACTUAL</th>
+                    <th rowspan="2" class="text-end">PROJECTION %</th>
+                    <th colspan="${exportPeriod}" class="text-center">CASH PROJECTION/PLAN</th>
+                    <th rowspan="2" class="text-end">TOTAL</th>
+                `;
+
+                const secondRow = document.createElement('tr');
+                secondRow.innerHTML = labels.map(l => `<th class="text-end">${l}</th>`).join('');
+
+                thead.innerHTML = '';
+                thead.appendChild(topRow);
+                thead.appendChild(secondRow);
+            }
+
+            function attachEventListeners() {
+                // Projection input changes
+                document.querySelectorAll('.projection-input').forEach(input => {
+                    input.addEventListener('change', function() {
+                        const id = this.getAttribute('data-id');
+                        const newValue = parseFloat(this.value) || 0;
+                        updateProjectionPercentage(id, newValue);
+                    });
+                });
+            }
+
+            function updateProjectionPercentage(id, newValue) {
+                fetch(`{{ url('branch/cashflows') }}/${id}/projection`, {
+                    method: 'PATCH',
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        projection_percentage: newValue
+                    })
                 })
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        alert('Cash flow entry deleted successfully!');
-                        loadCashflows();
+                        window.location.reload();
                     } else {
-                        throw new Error(data.message || 'Delete failed');
+                        showAlert(data.message || 'Failed to update projection percentage', 'error');
                     }
                 })
                 .catch(error => {
-                    console.error('Error:', error);
-                    alert('Failed to delete cash flow entry: ' + error.message);
+                    console.error('Error updating projection percentage:', error);
+                    showAlert('Error updating projection percentage', 'error');
                 });
             }
-        }
 
-        // Export cash flows
-        function exportCashflows() {
-            const period = document.getElementById('reporting_period').value;
-            const [year, month] = period.split('-');
+            function exportCashflowsFromModal() {
+                const monthStr = (document.getElementById('export_start_period').value || '{{ date('Y-m') }}');
+                const [year, month] = monthStr.split('-');
+                const periodValue = (document.getElementById('export_period').value || '3');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'];
 
-            // Create download link
-            const link = document.createElement('a');
-            link.href = `/branch/cashflows/export?year=${year}&month=${month}`;
-            link.download = `cashflow_${month}_${year}.xlsx`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
+                const params = new URLSearchParams({
+                    year: year,
+                    month: monthNames[parseInt(month) - 1],
+                    period: periodValue
+                });
+
+                const downloadUrl = `{{ route('branch.cashflows.export') }}?${params}`;
+
+                return fetch(downloadUrl)
+                    .then(response => {
+                        if (response.ok) {
+                            return response.blob();
+                        }
+                        throw new Error('Export failed');
+                    })
+                    .then(blob => {
+                        // Create blob URL and download
+                        const url = window.URL.createObjectURL(blob);
+                        const link = document.createElement('a');
+                        link.href = url;
+
+                        const pVal = parseInt(periodValue);
+                        const periodText = pVal <= 12 ? `${pVal}months` : `${pVal}years`;
+                        link.download = `cashflow_${monthNames[parseInt(month) - 1]}_${year}_${periodText}.xlsx`;
+
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+
+                        // Clean up blob URL
+                        window.URL.revokeObjectURL(url);
+
+                        // Show success message
+                        return Swal.fire({
+                            title: 'Export Successful!',
+                            text: 'Your cash flow report has been downloaded.',
+                            icon: 'success',
+                            timer: 2000,
+                            showConfirmButton: false
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Export error:', error);
+                        return Swal.fire({
+                            title: 'Export Failed',
+                            text: 'There was an error generating the export. Please try again.',
+                            icon: 'error'
+                        });
+                    });
+            }
+
+            function formatNumber(number) {
+                return parseFloat(number || 0).toLocaleString('en-US', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                });
+            }
+
+            function showAlert(message, type = 'info') {
+                Swal.fire({
+                    title: type.charAt(0).toUpperCase() + type.slice(1),
+                    text: message,
+                    icon: type,
+                    timer: type === 'success' ? 2000 : undefined,
+                    showConfirmButton: type !== 'success'
+                });
+            }
+        });
     </script>
 </body>
+
 </html>
 

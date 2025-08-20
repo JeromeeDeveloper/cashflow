@@ -9,6 +9,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 use Illuminate\Support\Facades\Auth;
+use App\Exports\BranchCashflowExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Illuminate\Support\Facades\Log;
 
 class CashflowController extends Controller
 {
@@ -25,9 +28,6 @@ class CashflowController extends Controller
 
         $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
             ->where('branch_id', $branch->id)
-            ->whereHas('glAccount', function($query) {
-                $query->where('is_selected', true);
-            })
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -49,10 +49,7 @@ class CashflowController extends Controller
         }
 
         $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
-            ->where('branch_id', $branchId)
-            ->whereHas('glAccount', function($query) {
-                $query->where('is_selected', true);
-            });
+            ->where('branch_id', $branchId);
 
         // Filter by year
         if ($request->filled('year')) {
@@ -71,9 +68,22 @@ class CashflowController extends Controller
 
         $cashflows = $query->orderBy('created_at', 'desc')->get();
 
+        // Debug: Log what we're getting
+        Log::info('Branch cashflow controller - cashflows found:', [
+            'count' => $cashflows->count(),
+            'sample' => $cashflows->take(3)->map(function($item) {
+                return [
+                    'id' => $item->id,
+                    'gl_account_id' => $item->gl_account_id,
+                    'actual_amount' => $item->actual_amount,
+                    'gl_account_name' => $item->glAccount ? $item->glAccount->account_name : 'N/A'
+                ];
+            })->toArray()
+        ]);
+
         return response()->json([
             'success' => true,
-            'cashflows' => $cashflows
+            'data' => $cashflows
         ]);
     }
 
@@ -133,7 +143,7 @@ class CashflowController extends Controller
     /**
      * Export cashflow data for the logged-in user's branch.
      */
-    public function export(Request $request): JsonResponse
+    public function export(Request $request)
     {
         $branchId = optional(Auth::user()->branch)->id;
 
@@ -144,26 +154,18 @@ class CashflowController extends Controller
             ], 403);
         }
 
-        $query = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
-            ->where('branch_id', $branchId);
+        $year = $request->integer('year');
+        $month = $request->get('month');
+        $period = $request->integer('period', 3);
 
-        // Apply filters
-        if ($request->filled('year')) {
-            $query->where('year', $request->year);
-        }
-        if ($request->filled('month')) {
-            $query->where('month', $request->month);
-        }
+        $fileNameParts = ['branch_cashflow'];
+        $fileNameParts[] = 'branch_'.$branchId;
+        if ($month) { $fileNameParts[] = strtolower($month); }
+        if ($year) { $fileNameParts[] = (string) $year; }
+        $fileNameParts[] = $period . ($period <= 12 ? 'months' : 'years');
+        $fileName = implode('_', $fileNameParts) . '.xlsx';
 
-        $cashflows = $query->orderBy('created_at', 'desc')->get();
-
-        // In a real application, you would generate and return an actual file
-        // For now, we'll return the data for frontend processing
-        return response()->json([
-            'success' => true,
-            'message' => 'Export data prepared successfully',
-            'data' => $cashflows
-        ]);
+        return Excel::download(new BranchCashflowExport($year, $month, $branchId, $period), $fileName);
     }
 
     /**
@@ -199,6 +201,26 @@ class CashflowController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Cash flow entry deleted successfully'
+        ]);
+    }
+
+    /**
+     * Update projection percentage for a cashflow entry.
+     */
+    public function updateProjectionPercentage(Request $request, Cashflow $cashflow): JsonResponse
+    {
+        $this->authorizeCashflow($cashflow);
+
+        $validated = $request->validate([
+            'projection_percentage' => 'required|numeric|min:0|max:100',
+        ]);
+
+        $cashflow->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Projection percentage updated successfully',
+            'cashflow' => $cashflow->fresh()
         ]);
     }
 
