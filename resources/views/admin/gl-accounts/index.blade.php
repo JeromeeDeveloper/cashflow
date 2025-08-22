@@ -307,6 +307,14 @@
                                     <i class="bi bi-plus-circle me-2"></i>Add GL Account
                                 </button>
                                 <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
+                                    <!-- Import -->
+                                    <form action="{{ route('admin.gl-accounts.import') }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+                                        @csrf
+                                        <input type="file" name="file" accept=".xlsx,.xls,.csv" class="form-control" style="max-width: 260px;" required>
+                                        <button type="submit" class="btn btn-outline-primary">
+                                            <i class="bi bi-upload me-2"></i>Import Excel
+                                        </button>
+                                    </form>
                                     <!-- Search -->
                                     <div class="input-group" style="max-width: 300px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>

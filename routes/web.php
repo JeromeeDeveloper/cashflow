@@ -38,6 +38,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'role:admin'])->grou
 
     // GL Accounts Management routes
     Route::post('/gl-accounts', [GLAccountsController::class, 'store'])->name('gl-accounts.store');
+    Route::post('/gl-accounts/import', [GLAccountsController::class, 'import'])->name('gl-accounts.import');
     Route::post('/gl-accounts/{glAccount}/selection', [GLAccountsController::class, 'updateSelection'])->name('gl-accounts.update-selection');
     Route::post('/gl-accounts/bulk-selection', [GLAccountsController::class, 'bulkUpdateSelection'])->name('gl-accounts.bulk-selection');
     Route::post('/gl-accounts/select-all', [GLAccountsController::class, 'selectAll'])->name('gl-accounts.select-all');
@@ -72,6 +73,7 @@ Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(f
     // GL Accounts Management routes
     Route::get('/gl-accounts', [HeadGLAccountsController::class, 'index'])->name('gl-accounts-head');
     Route::post('/gl-accounts', [HeadGLAccountsController::class, 'store'])->name('gl-accounts.store');
+    Route::post('/gl-accounts/import', [HeadGLAccountsController::class, 'import'])->name('gl-accounts.import');
     Route::post('/gl-accounts/{glAccount}/selection', [HeadGLAccountsController::class, 'updateSelection'])->name('gl-accounts.update-selection');
     Route::post('/gl-accounts/bulk-selection', [HeadGLAccountsController::class, 'bulkUpdateSelection'])->name('gl-accounts.bulk-selection');
     Route::post('/gl-accounts/select-all', [HeadGLAccountsController::class, 'selectAll'])->name('gl-accounts.select-all');

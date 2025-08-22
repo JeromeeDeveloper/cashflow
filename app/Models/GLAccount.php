@@ -19,6 +19,7 @@ class GLAccount extends Model
         'parent_id',
         'account_type',
         'level',
+        'category',
         'is_active',
         'is_selected',
         'cashflow_type',

@@ -7,6 +7,8 @@ use App\Models\GLAccount;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Imports\GLAccountsImport;
 
 class GLAccountsController extends Controller
 {
@@ -187,6 +189,20 @@ class GLAccountsController extends Controller
             'parentAccounts' => $parentAccounts,
             'selectionPercentage' => $selectionPercentage
         ]);
+    }
+
+    /**
+     * Import GL Accounts from an uploaded Excel file.
+     */
+    public function import(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:xlsx,xls,csv',
+        ]);
+
+        Excel::import(new GLAccountsImport(), $request->file('file'));
+
+        return redirect()->back()->with('success', 'GL Accounts imported successfully.');
     }
 
     /**
