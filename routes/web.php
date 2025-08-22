@@ -12,7 +12,7 @@ use App\Http\Controllers\Admin\UsersController;
 use App\Http\Controllers\Admin\GLAccountsController;
 use App\Http\Controllers\Head\FileController;
 use App\Http\Controllers\Head\CashflowController as HeadCashflowController;
-use App\Http\Controllers\Head\GLAccountController;
+use App\Http\Controllers\Head\GLAccountsController as HeadGLAccountsController;
 
 // Route::get('/', function () {
 //     return view('welcome');
@@ -68,15 +68,34 @@ Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(f
     Route::get('/dashboard', [HeadDashboardController::class, 'index'])->name('dashboard');
     Route::get('/file', [FileController::class, 'index'])->name('file');
     Route::get('/cashflow', [HeadCashflowController::class, 'index'])->name('cashflow');
-    Route::get('/gl-accounts', [GLAccountController::class, 'index'])->name('gl-accounts');
 
-    // GL Accounts CRUD routes
-    Route::post('/gl-accounts', [GLAccountController::class, 'store'])->name('gl-accounts.store');
-    Route::get('/gl-accounts/{glAccount}', [GLAccountController::class, 'show'])->name('gl-accounts.show');
-    Route::put('/gl-accounts/{glAccount}', [GLAccountController::class, 'update'])->name('gl-accounts.update');
-    Route::delete('/gl-accounts/{glAccount}', [GLAccountController::class, 'destroy'])->name('gl-accounts.destroy');
-    Route::post('/gl-accounts/import', [GLAccountController::class, 'import'])->name('gl-accounts.import');
-    Route::get('/gl-accounts/list', [GLAccountController::class, 'getAccounts'])->name('gl-accounts.list');
+    // GL Accounts Management routes
+    Route::get('/gl-accounts', [HeadGLAccountsController::class, 'index'])->name('gl-accounts-head');
+    Route::post('/gl-accounts', [HeadGLAccountsController::class, 'store'])->name('gl-accounts.store');
+    Route::post('/gl-accounts/{glAccount}/selection', [HeadGLAccountsController::class, 'updateSelection'])->name('gl-accounts.update-selection');
+    Route::post('/gl-accounts/bulk-selection', [HeadGLAccountsController::class, 'bulkUpdateSelection'])->name('gl-accounts.bulk-selection');
+    Route::post('/gl-accounts/select-all', [HeadGLAccountsController::class, 'selectAll'])->name('gl-accounts.select-all');
+    Route::post('/gl-accounts/deselect-all', [HeadGLAccountsController::class, 'deselectAll'])->name('gl-accounts.deselect-all');
+    Route::get('/gl-accounts/get-accounts', [HeadGLAccountsController::class, 'getAccounts'])->name('gl-accounts.get-accounts');
+    Route::get('/gl-accounts/stats', [HeadGLAccountsController::class, 'getStats'])->name('gl-accounts.stats');
+
+    // Edit and update routes
+    Route::get('/gl-accounts/{glAccount}/edit', [HeadGLAccountsController::class, 'edit'])->name('gl-accounts.edit');
+    Route::put('/gl-accounts/{glAccount}', [HeadGLAccountsController::class, 'update'])->name('gl-accounts.update');
+
+    // Parent-child relationship routes
+    Route::post('/gl-accounts/{glAccount}/make-parent', [HeadGLAccountsController::class, 'makeParent'])->name('gl-accounts.make-parent');
+    Route::post('/gl-accounts/{glAccount}/remove-parent-child', [HeadGLAccountsController::class, 'removeParentChild'])->name('gl-accounts.remove-parent-child');
+
+    // Merge accounts routes
+    Route::post('/gl-accounts/{glAccount}/merge', [HeadGLAccountsController::class, 'mergeAccounts'])->name('gl-accounts.merge');
+    Route::post('/gl-accounts/{glAccount}/unmerge', [HeadGLAccountsController::class, 'unmergeAccounts'])->name('gl-accounts.unmerge');
+
+    // Cashflow type management
+    Route::post('/gl-accounts/update-cashflow-types', [HeadGLAccountsController::class, 'updateCashflowTypes'])->name('gl-accounts.update-cashflow-types');
+
+    // Account order management
+    Route::post('/gl-accounts/update-order', [HeadGLAccountsController::class, 'updateOrder'])->name('gl-accounts.update-order');
 
     // Cashflow CRUD routes
     Route::get('/cashflows', [HeadCashflowController::class, 'getCashflows'])->name('cashflows.index');
@@ -113,8 +132,8 @@ Route::prefix('branch')->name('branch.')->middleware(['auth', 'role:branch'])->g
     Route::delete('/cashflows/{cashflow}', [BranchCashflowController::class, 'destroy'])->name('cashflows.destroy');
     Route::get('/cashflows/summary', [BranchCashflowController::class, 'getSummary'])->name('cashflows.summary');
     Route::patch('/cashflows/{cashflow}/projection', [BranchCashflowController::class, 'updateProjectionPercentage'])->name('cashflows.update-projection');
-    // Use path relative to group; final URL: /branch/cashflows/export. Name is 'cashflows.export' so with group prefix it's 'branch.cashflows.export'
-    Route::get('/branch/cashflows/export', [BranchCashflowController::class, 'export'])->name('cashflows.export');
+    // Export
+    Route::get('/cashflows/export', [BranchCashflowController::class, 'export'])->name('cashflows.export');
 
     // Branch File upload routes (branch-scoped)
     Route::get('/files', [BranchFileController::class, 'getFiles'])->name('files.index');
