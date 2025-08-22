@@ -18,6 +18,8 @@ class CashflowFile extends Model
         'file_type',
         'year',
         'month',
+        'period_type',
+        'week',
         'branch_id',
         'uploaded_by',
         'status',
@@ -26,7 +28,9 @@ class CashflowFile extends Model
 
     protected $casts = [
         'year' => 'integer',
+        'week' => 'integer',
         'status' => 'string',
+        'period_type' => 'string',
     ];
 
     /**

@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('file_type')->default('cashflow');
             $table->year('year'); // Year the file represents
             $table->string('month', 20)->nullable(); // Month if applicable (January, February, etc.)
+            $table->string('period_type')->default('monthly'); // monthly, weekly
+            $table->integer('week')->nullable(); // Week number (1-4) for weekly uploads
             $table->foreignId('branch_id')->constrained('branches')->onDelete('cascade');
             $table->string('uploaded_by')->nullable(); // User who uploaded
             $table->string('status')->default('pending'); // pending, processed, error

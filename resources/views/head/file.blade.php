@@ -208,6 +208,24 @@
                                         </select>
                                     </div>
                                     <div class="col-md-6">
+                                        <label for="period_type" class="form-label">Period Type <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="period_type" name="period_type" required>
+                                            <option value="">Select Period Type</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="weekly">Weekly</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6" id="week_selection" style="display: none;">
+                                        <label for="week" class="form-label">Week <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="week" name="week">
+                                            <option value="">Select Week</option>
+                                            <option value="1">Week 1</option>
+                                            <option value="2">Week 2</option>
+                                            <option value="3">Week 3</option>
+                                            <option value="4">Week 4</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6">
                                         <label for="file" class="form-label">Excel File <span class="text-danger">*</span></label>
                                         <input type="file" class="form-control" id="file" name="file" accept=".xlsx,.xls" required>
                                         <small class="text-muted">Only Excel files (.xlsx, .xls) up to 10MB</small>
@@ -338,6 +356,21 @@
 
             // Current file ID for operations
             let currentFileId = null;
+
+            // Handle period type selection
+            document.getElementById('period_type').addEventListener('change', function() {
+                const weekSelection = document.getElementById('week_selection');
+                const weekInput = document.getElementById('week');
+
+                if (this.value === 'weekly') {
+                    weekSelection.style.display = 'block';
+                    weekInput.required = true;
+                } else {
+                    weekSelection.style.display = 'none';
+                    weekInput.required = false;
+                    weekInput.value = '';
+                }
+            });
 
             // Upload button
             document.getElementById('btnAdd').addEventListener('click', function() {
@@ -522,6 +555,8 @@
                 const branchInput = document.getElementById('branch_id');
                 const yearInput = document.getElementById('year');
                 const monthInput = document.getElementById('month');
+                const periodTypeInput = document.getElementById('period_type');
+                const weekInput = document.getElementById('week');
                 const descriptionInput = document.getElementById('description');
 
                 // Validate required fields
@@ -539,6 +574,14 @@
                 }
                 if (!monthInput.value) {
                     showAlert('Please select a month', 'error');
+                    return;
+                }
+                if (!periodTypeInput.value) {
+                    showAlert('Please select a period type', 'error');
+                    return;
+                }
+                if (periodTypeInput.value === 'weekly' && !weekInput.value) {
+                    showAlert('Please select a week for weekly period type', 'error');
                     return;
                 }
 
@@ -559,6 +602,8 @@
                 formData.append('branch_id', branchInput.value);
                 formData.append('year', yearInput.value);
                 formData.append('month', monthInput.value);
+                formData.append('period_type', periodTypeInput.value);
+                formData.append('week', weekInput.value);
                 formData.append('description', descriptionInput.value);
                 formData.append('_token', csrfToken);
 

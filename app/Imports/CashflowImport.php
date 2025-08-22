@@ -18,13 +18,17 @@ class CashflowImport implements ToCollection, WithStartRow
     protected $branchId;
     protected $year;
     protected $month;
+    protected $periodType;
+    protected $week;
 
-    public function __construct(CashflowFile $cashflowFile, $branchId, $year, $month)
+    public function __construct(CashflowFile $cashflowFile, $branchId, $year, $month, $periodType = 'monthly', $week = null)
     {
         $this->cashflowFile = $cashflowFile;
         $this->branchId = $branchId;
         $this->year = $year;
         $this->month = $month;
+        $this->periodType = $periodType;
+        $this->week = $week;
     }
 
     /**
@@ -754,6 +758,9 @@ class CashflowImport implements ToCollection, WithStartRow
                 foreach ($cashflowData['products'] as $index => $product) {
                     Log::info("Storing product {$index}: " . json_encode($product));
 
+                    // Store amounts as-is (no conversion during upload)
+                    $actualAmount = $product['actual_amount'];
+
                     $productData = [
                         'cashflow_file_id' => $this->cashflowFile->id,
                         'branch_id' => $this->branchId,
@@ -762,17 +769,19 @@ class CashflowImport implements ToCollection, WithStartRow
                         'section' => $product['section'], // Add section field
                         'year' => $this->year,
                         'month' => $this->month,
-                        'period' => "{$this->month} {$this->year}",
-                        'actual_amount' => $product['actual_amount'],
+                        'period' => $this->periodType === 'weekly' ? "Week {$this->week} {$this->month} {$this->year}" : "{$this->month} {$this->year}",
+                        'actual_amount' => $actualAmount,
                         'projection_percentage' => null,
                         'projected_amount' => null,
                         'period_values' => json_encode([
                             'section' => $product['section'],
                             'amount' => $product['actual_amount'],
                             'gl_account_id' => $product['gl_account_id'],
-                            'cashflow_type' => $product['cashflow_type']
+                            'cashflow_type' => $product['cashflow_type'],
+                            'period_type' => $this->periodType,
+                            'week' => $this->week
                         ]),
-                        'total' => $product['actual_amount'],
+                        'total' => $actualAmount,
                         'cash_beginning_balance' => null,
                         'total_cash_available' => null,
                         'less_disbursements' => null,

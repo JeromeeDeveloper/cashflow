@@ -56,13 +56,17 @@
                                             <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                                         @endforeach
                                     </select>
-                                    <select id="table_period" class="form-select" style="max-width: 150px;">
-                                        <option value="3">3 Months</option>
-                                        <option value="6">6 Months</option>
-                                        <option value="12">12 Months</option>
-                                        <option value="36">3 Years</option>
-                                        <option value="60">5 Years</option>
+                                    <select id="table_period_type" class="form-select" style="max-width: 120px;">
+                                        <option value="weekly">Weekly</option>
+                                        <option value="monthly">Monthly</option>
                                     </select>
+                                    <select id="table_period" class="form-select" style="max-width: 150px;">
+                                        <option value="1">Week 1</option>
+                                        <option value="2">Week 2</option>
+                                        <option value="3">Week 3</option>
+                                        <option value="4">Week 4</option>
+                                    </select>
+
 
 
                                     <button id="btnExport" class="btn btn-success"><i class="bi bi-download me-2"></i>Export Cashflow Planning Report</button>
@@ -303,6 +307,19 @@
 
             // Build header and load initial data
             buildTableHeader();
+
+            // Initialize period dropdown based on current period type
+            const initialPeriodType = document.getElementById('table_period_type').value || 'monthly';
+            const periodSelect = document.getElementById('table_period');
+            if (initialPeriodType === 'weekly') {
+                periodSelect.innerHTML = `
+                    <option value="1">Week 1</option>
+                    <option value="2">Week 2</option>
+                    <option value="3">Week 3</option>
+                    <option value="4">Week 4</option>
+                `;
+            }
+
             let lastLoadedCashflows = Array.isArray(initialCashflows) ? initialCashflows : [];
             if (lastLoadedCashflows.length > 0) {
                 updateTable(lastLoadedCashflows);
@@ -369,6 +386,35 @@
                 buildTableHeader();
                 loadCashflows();
             });
+                        document.getElementById('table_period_type').addEventListener('change', function() {
+                // Update period dropdown options based on period type
+                const periodSelect = document.getElementById('table_period');
+                if (this.value === 'weekly') {
+                    // For weekly, show Week 1, Week 2, Week 3, Week 4
+                    periodSelect.innerHTML = `
+                        <option value="1">Week 1</option>
+                        <option value="2">Week 2</option>
+                        <option value="3">Week 3</option>
+                        <option value="4">Week 4</option>
+                    `;
+                } else {
+                    // For monthly, show 3 Months, 6 Months, etc.
+                    periodSelect.innerHTML = `
+                        <option value="3">3 Months</option>
+                        <option value="6">6 Months</option>
+                        <option value="12">12 Months</option>
+                        <option value="36">3 Years</option>
+                        <option value="60">5 Years</option>
+                    `;
+                }
+
+                buildTableHeader();
+
+                // Force reload from server when period type changes
+                console.log('Period type changed to:', this.value);
+                loadCashflows();
+            });
+
             document.getElementById('table_period').addEventListener('change', function() {
                 buildTableHeader();
                 if (lastLoadedCashflows.length > 0) updateTable(lastLoadedCashflows);
@@ -385,6 +431,7 @@
                 const [curYear, curMonth] = currentMonthValue.split('-');
                 const currentBranchId = document.getElementById('table_branch_filter').value || '';
                 const currentPeriod = document.getElementById('table_period').value || '3';
+                const currentPeriodType = document.getElementById('table_period_type').value || 'monthly';
 
                 const branches = @json($branches->map(fn($b) => ['id' => $b->id, 'name' => $b->name]));
                 const branchOptions = ['<option value="">All Branches</option>']
@@ -399,14 +446,27 @@
                             <input type="month" id="export_start_period" class="form-control" value="${curYear}-${curMonth}">
                             <div class="mt-3 mb-2">Branch</div>
                             <select id="export_branch" class="form-select">${branchOptions}</select>
+                            <div class="mt-3 mb-2">Period Type</div>
+                            <select id="export_period_type" class="form-select">
+                                <option value="monthly" ${currentPeriodType==='monthly'?'selected':''}>Monthly</option>
+                                <option value="weekly" ${currentPeriodType==='weekly'?'selected':''}>Weekly</option>
+                            </select>
                             <div class="mt-3 mb-2">Period</div>
                             <select id="export_period" class="form-select">
-                                <option value="3" ${currentPeriod==='3'?'selected':''}>3 Months</option>
-                                <option value="6" ${currentPeriod==='6'?'selected':''}>6 Months</option>
-                                <option value="12" ${currentPeriod==='12'?'selected':''}>12 Months</option>
-                                <option value="36" ${currentPeriod==='36'?'selected':''}>3 Years</option>
-                                <option value="60" ${currentPeriod==='60'?'selected':''}>5 Years</option>
+                                ${currentPeriodType === 'weekly' ? `
+                                    <option value="1" ${currentPeriod==='1'?'selected':''}>Week 1</option>
+                                    <option value="2" ${currentPeriod==='2'?'selected':''}>Week 2</option>
+                                    <option value="3" ${currentPeriod==='3'?'selected':''}>Week 3</option>
+                                    <option value="4" ${currentPeriod==='4'?'selected':''}>Week 4</option>
+                                ` : `
+                                    <option value="3" ${currentPeriod==='3'?'selected':''}>3 Months</option>
+                                    <option value="6" ${currentPeriod==='6'?'selected':''}>6 Months</option>
+                                    <option value="12" ${currentPeriod==='12'?'selected':''}>12 Months</option>
+                                    <option value="36" ${currentPeriod==='36'?'selected':''}>3 Years</option>
+                                    <option value="60" ${currentPeriod==='60'?'selected':''}>5 Years</option>
+                                `}
                             </select>
+
                         </div>
                     `,
                     icon: 'question',
@@ -418,6 +478,31 @@
                     showLoaderOnConfirm: true,
                     preConfirm: () => exportCashflowsFromModal()
                 });
+
+                // Handle period type change in export modal
+                document.getElementById('export_period_type').addEventListener('change', function() {
+                    const periodSelect = document.getElementById('export_period');
+                    if (this.value === 'weekly') {
+                        // For weekly, show Week 1, Week 2, Week 3, Week 4
+                        periodSelect.innerHTML = `
+                            <option value="1">Week 1</option>
+                            <option value="2">Week 2</option>
+                            <option value="3">Week 3</option>
+                            <option value="4">Week 4</option>
+                        `;
+                    } else {
+                        // For monthly, show 3 Months, 6 Months, etc.
+                        periodSelect.innerHTML = `
+                            <option value="3">3 Months</option>
+                            <option value="6">6 Months</option>
+                            <option value="12">12 Months</option>
+                            <option value="36">3 Years</option>
+                            <option value="60">5 Years</option>
+                        `;
+                    }
+                });
+
+
             }
 
             function calculateAmounts() {
@@ -443,6 +528,7 @@
             function loadCashflows() {
                 const monthInput = document.getElementById('table_start_period');
                 const branchFilter = document.getElementById('table_branch_filter');
+                const periodTypeFilter = document.getElementById('table_period_type');
 
                 const [year, month] = monthInput.value.split('-');
                 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -450,17 +536,35 @@
 
                 const params = new URLSearchParams({
                     year: year,
-                    month: monthNames[parseInt(month) - 1]
+                    month: monthNames[parseInt(month) - 1],
+                    period_type: periodTypeFilter ? periodTypeFilter.value || 'monthly' : 'monthly'
                 });
                 if (branchFilter.value) {
                     params.set('branch_id', branchFilter.value);
                 }
+
+                // Debug: Log the parameters being sent
+                console.log('Loading cashflows with params:', {
+                    year: year,
+                    month: monthNames[parseInt(month) - 1],
+                    period_type: periodTypeFilter ? periodTypeFilter.value || 'monthly' : 'monthly',
+                    branch_id: branchFilter.value || 'None'
+                });
 
                 fetch(`{{ route('head.cashflows.index') }}?${params}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
                             lastLoadedCashflows = Array.isArray(data.data) ? data.data : [];
+                            // Debug: Log the response data
+                            console.log('Received cashflows data:', {
+                                count: lastLoadedCashflows.length,
+                                sample: lastLoadedCashflows.slice(0, 3).map(c => ({
+                                    id: c.id,
+                                    actual_amount: c.actual_amount,
+                                    period_values: c.period_values
+                                }))
+                            });
                             updateTable(lastLoadedCashflows);
                         }
                     })
@@ -592,6 +696,7 @@
                             const nameRaw = c.gl_account?.account_name || c.account_name || 'N/A';
                             const isChild = c.gl_account && c.gl_account.parent_id;
                             const displayName = isChild ? `&gt; ${nameRaw}` : nameRaw;
+                            // Use the converted actual_amount from server
                             const actual = parseFloat(c.actual_amount) || 0;
                             const proj = parseFloat(c.projection_percentage) || 0;
 
@@ -617,6 +722,18 @@
                 const beginningBalance = (!branchSelected)
                     ? receipts.reduce((sum, c) => sum + (parseFloat(c.actual) || 0), 0)
                     : receipts.reduce((sum, c) => sum + (parseFloat(c.actual_amount) || 0), 0);
+
+                // Debug: Log the beginning balance calculation
+                console.log('Beginning balance calculation:', {
+                    branchSelected: branchSelected,
+                    receiptsCount: receipts.length,
+                    beginningBalance: beginningBalance,
+                    sampleReceipts: receipts.slice(0, 3).map(c => ({
+                        actual: c.actual,
+                        actual_amount: c.actual_amount,
+                        name: c.name || c.gl_account?.account_name
+                    }))
+                });
 
                 // Helper to build a row
                 const makeRow = (cells) => `<tr>${cells.join('')}</tr>`;
@@ -762,14 +879,27 @@
             function getPeriodLabels() {
                 const monthInput = document.getElementById('table_start_period');
                 const exportPeriod = document.getElementById('table_period');
+                const periodType = document.getElementById('table_period_type').value || 'monthly';
                 const [yearStr, monthStr] = (monthInput.value || '').split('-');
                 const period = parseInt(exportPeriod.value || '3', 10);
-                const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-                const startIndex = Math.max(0, (parseInt(monthStr, 10) || 1) - 1);
-                const labels = [];
-                for (let i = 0; i < period; i++) labels.push(months[(startIndex + i) % 12]);
-                const selectedLabel = months[startIndex];
-                return { labels, selectedLabel };
+
+                if (periodType === 'weekly') {
+                    // For weekly periods, show Week 1, Week 2, etc.
+                    const labels = [];
+                    for (let i = 1; i <= period; i++) {
+                        labels.push(`Week ${i}`);
+                    }
+                    const selectedLabel = 'Week 1';
+                    return { labels, selectedLabel };
+                } else {
+                    // For monthly periods, show month names
+                    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                    const startIndex = Math.max(0, (parseInt(monthStr, 10) || 1) - 1);
+                    const labels = [];
+                    for (let i = 0; i < period; i++) labels.push(months[(startIndex + i) % 12]);
+                    const selectedLabel = months[startIndex];
+                    return { labels, selectedLabel };
+                }
             }
 
             function buildTableHeader() {
@@ -992,12 +1122,14 @@
                 const [year, month] = monthStr.split('-');
                 const branchId = (document.getElementById('export_branch').value || '');
                 const periodValue = (document.getElementById('export_period').value || '3');
+                const periodType = (document.getElementById('export_period_type').value || 'monthly');
                 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'];
 
                 const params = new URLSearchParams({
                     year: year,
                     month: monthNames[parseInt(month) - 1],
-                    period: periodValue
+                    period: periodValue,
+                    period_type: periodType
                 });
                 if (branchId) {
                     params.set('branch_id', branchId);
@@ -1019,8 +1151,15 @@
                         link.href = url;
 
                         const pVal = parseInt(periodValue);
-                        const periodText = pVal <= 12 ? `${pVal}months` : `${pVal}years`;
-                        link.download = `cashflow_${monthNames[parseInt(month) - 1]}_${year}_${periodText}.xlsx`;
+                        let periodText;
+                        if (periodType === 'weekly') {
+                            periodText = `${pVal}weeks`;
+                        } else {
+                            periodText = pVal <= 12 ? `${pVal}months` : `${pVal}years`;
+                        }
+
+                        let filename = `cashflow_${monthNames[parseInt(month) - 1]}_${year}_${periodText}`;
+                        link.download = `${filename}.xlsx`;
 
                         document.body.appendChild(link);
                         link.click();

@@ -97,6 +97,26 @@ class CashflowController extends Controller
 
         $cashflows = $query->orderBy('created_at', 'desc')->get();
 
+                // Apply period type conversion if needed
+        $periodType = $request->get('period_type', 'monthly');
+        if ($periodType === 'weekly' || $periodType === 'monthly') {
+            $cashflows->transform(function ($cashflow) use ($periodType) {
+                $periodValues = json_decode($cashflow->period_values ?? '{}', true);
+                $originalPeriodType = $periodValues['period_type'] ?? 'monthly';
+
+                // Apply conversion based on original type and display filter
+                if ($periodType === 'monthly' && $originalPeriodType === 'weekly') {
+                    // Weekly data displayed as monthly: multiply by 4
+                    $cashflow->actual_amount = $cashflow->actual_amount * 4;
+                } elseif ($periodType === 'weekly' && $originalPeriodType === 'monthly') {
+                    // Monthly data displayed as weekly: divide by 4
+                    $cashflow->actual_amount = $cashflow->actual_amount / 4;
+                }
+
+                return $cashflow;
+            });
+        }
+
         // Debug: Log what we're getting
         Log::info('Branch cashflow controller - cashflows found:', [
             'count' => $cashflows->count(),
@@ -216,15 +236,27 @@ class CashflowController extends Controller
         $year = $request->integer('year');
         $month = $request->get('month');
         $period = $request->integer('period', 3);
+        $periodType = $request->get('period_type', 'monthly');
+        $week = $request->filled('week') ? (int) $request->week : null;
 
         $fileNameParts = ['branch_cashflow'];
         $fileNameParts[] = 'branch_'.$branchId;
+        if ($periodType === 'weekly') {
+            $fileNameParts[] = 'weekly';
+            if ($week) { $fileNameParts[] = 'week_'.$week; }
+        }
         if ($month) { $fileNameParts[] = strtolower($month); }
         if ($year) { $fileNameParts[] = (string) $year; }
-        $fileNameParts[] = $period . ($period <= 12 ? 'months' : 'years');
+
+        if ($periodType === 'weekly') {
+            $fileNameParts[] = $period . 'weeks';
+        } else {
+            $fileNameParts[] = $period . ($period <= 12 ? 'months' : 'years');
+        }
+
         $fileName = implode('_', $fileNameParts) . '.xlsx';
 
-        return Excel::download(new BranchCashflowExport($year, $month, $branchId, $period), $fileName);
+        return Excel::download(new BranchCashflowExport($year, $month, $branchId, $period, $periodType, $week), $fileName);
     }
 
     /**

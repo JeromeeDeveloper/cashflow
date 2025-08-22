@@ -22,13 +22,17 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
     private ?string $month;
     private ?int $branchId;
     private int $period;
+    private string $periodType;
+    private ?int $week;
 
-    public function __construct(?int $year = null, ?string $month = null, ?int $branchId = null, int $period = 3)
+    public function __construct(?int $year = null, ?string $month = null, ?int $branchId = null, int $period = 3, string $periodType = 'monthly', ?int $week = null)
     {
         $this->year = $year;
         $this->month = $month;
         $this->branchId = $branchId;
         $this->period = $period;
+        $this->periodType = $periodType;
+        $this->week = $week;
     }
 
     public function headings(): array
@@ -40,31 +44,65 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
         $row5 = ['', '', '', '', '', '', '', ''];
         $row6 = ['PARTICULARS', 'ACTUAL', 'PROJECTION %', 'CASH PROJECTION/PLAN', '', '', 'TOTAL', ''];
 
-        // Determine date labels based on selected month/year
-        $isMonthly = !empty($this->month);
+        // Determine date labels based on selected month/year and period type
+        $isWeekly = $this->periodType === 'weekly';
         $dateLabels = [];
-        if ($isMonthly) {
-            $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            $startMonthIndex = array_search($this->month, $months);
-            if ($startMonthIndex === false) {
-                $startMonthIndex = (int)date('n') - 1;
+
+        if ($isWeekly) {
+            // For weekly exports, show Week 1, Week 2, etc.
+            for ($i = 1; $i <= $this->period; $i++) {
+                $dateLabels[] = "Week {$i}";
             }
-            for ($i = 0; $i < $this->period; $i++) {
-                $dateLabels[] = $months[($startMonthIndex + $i) % 12];
-            }
-            $selectedLabel = $this->month ?? $months[(int)date('n') - 1];
+            // Use selected period as the week number (1-4) for B7 label
+            $selectedLabel = "Week {$this->period}";
         } else {
-            $startYear = (int)($this->year ?? date('Y'));
-            for ($i = 0; $i < $this->period; $i++) {
-                $dateLabels[] = (string)($startYear + $i);
+            // For monthly exports, show month names
+            $isMonthly = !empty($this->month);
+            if ($isMonthly) {
+                $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                $startMonthIndex = array_search($this->month, $months);
+                if ($startMonthIndex === false) {
+                    $startMonthIndex = (int)date('n') - 1;
+                }
+                for ($i = 0; $i < $this->period; $i++) {
+                    $dateLabels[] = $months[($startMonthIndex + $i) % 12];
+                }
+                $selectedLabel = $this->month ?? $months[(int)date('n') - 1];
+            } else {
+                $startYear = (int)($this->year ?? date('Y'));
+                for ($i = 0; $i < $this->period; $i++) {
+                    $dateLabels[] = (string)($startYear + $i);
+                }
+                $selectedLabel = (string)$startYear;
             }
-            $selectedLabel = (string)$startYear;
         }
 
         // Row 7: B7 should display the selected month/year label
         $row7 = ['', $selectedLabel, '', ...$dateLabels, 'TOTAL'];
 
         return [$row1, $row2, $row3, $row4, $row5, $row6, $row7];
+    }
+
+        /**
+     * Helper function to convert amounts based on period type
+     */
+    private function convertAmount($cashflow, $amount)
+    {
+        // Get the original period type from the stored data
+        $periodValues = json_decode($cashflow->period_values ?? '{}', true);
+        $originalPeriodType = $periodValues['period_type'] ?? 'monthly';
+
+        // Apply conversion based on original type and display filter
+        if ($this->periodType === 'monthly' && $originalPeriodType === 'weekly') {
+            // Weekly data displayed as monthly: multiply by 4
+            return $amount * 4;
+        } elseif ($this->periodType === 'weekly' && $originalPeriodType === 'monthly') {
+            // Monthly data displayed as weekly: divide by 4
+            return $amount / 4;
+        } else {
+            // Same type or no conversion needed
+            return $amount;
+        }
     }
 
     public function array(): array
@@ -76,6 +114,8 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
                 'month' => $this->month,
                 'branch_id' => $this->branchId,
                 'period' => $this->period,
+                'period_type' => $this->periodType,
+                'week' => $this->week,
             ]);
 
             // Get cashflow data with relationships and only selected GL accounts
@@ -234,13 +274,16 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
                 $actual = (float) ($cashflow->actual_amount ?? 0);
                 $projection = (float) ($cashflow->projection_percentage ?? 0);
 
+                // Convert amount based on period type
+                $actual = $this->convertAmount($cashflow, $actual);
+
                 // Calculate projections with compounding
                 $projections = [];
                 $currentValue = $actual;
 
                 for ($i = 1; $i <= $this->period; $i++) {
-                    // Formula: Previous month value * (1 + projection_percentage/100)
-                    // This creates compounding growth where each month builds on the previous month
+                    // Formula: Previous period value * (1 + projection_percentage/100)
+                    // This creates compounding growth where each period builds on the previous period
                     $currentValue = $currentValue * (1 + ($projection / 100));
                     $projections[] = $currentValue;
                     $receiptsTotal[$i] += $currentValue;
@@ -278,11 +321,14 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
                             $childActual = (float) ($childCashflow->actual_amount ?? 0);
                             $childProjection = (float) ($childCashflow->projection_percentage ?? 0);
 
+                            // Convert amount based on period type
+                            $childActual = $this->convertAmount($childCashflow, $childActual);
+
                             $childProjections = [];
                             $childCurrentValue = $childActual;
 
                             for ($i = 1; $i <= $this->period; $i++) {
-                                // Formula: Previous month value * (1 + projection_percentage/100)
+                                // Formula: Previous period value * (1 + projection_percentage/100)
                                 $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
                                 $childProjections[] = $childCurrentValue;
                                 $receiptsTotal[$i] += $childCurrentValue;
@@ -362,6 +408,9 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
                 $actual = (float) ($cashflow->actual_amount ?? 0);
                 $projection = (float) ($cashflow->projection_percentage ?? 0);
 
+                // Convert amount based on period type
+                $actual = $this->convertAmount($cashflow, $actual);
+
                 // Calculate projections with compounding
                 $projections = [];
                 $currentValue = $actual;
@@ -406,11 +455,14 @@ class BranchCashflowExport implements FromArray, WithHeadings, ShouldAutoSize, W
                             $childActual = (float) ($childCashflow->actual_amount ?? 0);
                             $childProjection = (float) ($childCashflow->projection_percentage ?? 0);
 
+                            // Convert amount based on period type
+                            $childActual = $this->convertAmount($childCashflow, $childActual);
+
                             $childProjections = [];
                             $childCurrentValue = $childActual;
 
                             for ($i = 1; $i <= $this->period; $i++) {
-                                // Formula: Previous month value * (1 + projection_percentage/100)
+                                // Formula: Previous period value * (1 + projection_percentage/100)
                                 $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
                                 $childProjections[] = $childCurrentValue;
                                 $disbursementsTotal[$i] += $childCurrentValue;

@@ -22,13 +22,17 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
     private ?string $month;
     private ?int $branchId;
     private int $period;
+    private string $periodType;
+    private ?int $week;
 
-    public function __construct(?int $year = null, ?string $month = null, ?int $branchId = null, int $period = 3)
+    public function __construct(?int $year = null, ?string $month = null, ?int $branchId = null, int $period = 3, string $periodType = 'monthly', ?int $week = null)
     {
         $this->year = $year;
         $this->month = $month;
         $this->branchId = $branchId;
         $this->period = $period;
+        $this->periodType = $periodType;
+        $this->week = $week;
     }
 
     public function headings(): array
@@ -40,10 +44,19 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
         $row5 = ['', '', '', '', '', '', '', ''];
         $row6 = ['PARTICULARS', 'ACTUAL', 'PROJECTION %', 'CASH PROJECTION/PLAN', '', '', 'TOTAL', ''];
 
-        // Determine date labels based on selected month/year
-        $isMonthly = !empty($this->month);
+        // Determine date labels based on selected month/year and period type
+        $isWeekly = $this->periodType === 'weekly';
         $dateLabels = [];
-        if ($isMonthly) {
+
+        if ($isWeekly) {
+            // For weekly exports, show Week 1, Week 2, etc.
+            for ($i = 1; $i <= $this->period; $i++) {
+                $dateLabels[] = "Week {$i}";
+            }
+            // Use selected period as the week number (1-4) for B7 label
+            $selectedLabel = "Week {$this->period}";
+        } else {
+            // For monthly exports, show month names
             $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             $startMonthIndex = array_search($this->month, $months);
             if ($startMonthIndex === false) {
@@ -53,18 +66,50 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $dateLabels[] = $months[($startMonthIndex + $i) % 12];
             }
             $selectedLabel = $this->month ?? $months[(int)date('n') - 1];
-        } else {
-            $startYear = (int)($this->year ?? date('Y'));
-            for ($i = 0; $i < $this->period; $i++) {
-                $dateLabels[] = (string)($startYear + $i);
-            }
-            $selectedLabel = (string)$startYear;
         }
 
-        // Row 7: B7 should display the selected month/year label
+        // Row 7: B7 should display the selected period label
         $row7 = ['', $selectedLabel, '', ...$dateLabels, 'TOTAL'];
 
         return [$row1, $row2, $row3, $row4, $row5, $row6, $row7];
+    }
+
+            /**
+     * Helper function to convert amounts based on period type
+     */
+    private function convertAmount($cashflow, $amount)
+    {
+        // Get the original period type from the stored data
+        $periodValues = json_decode($cashflow->period_values ?? '{}', true);
+        $originalPeriodType = $periodValues['period_type'] ?? 'monthly';
+
+        // Debug: Log conversion decision
+        Log::info('Export conversion decision:', [
+            'cashflow_id' => $cashflow->id,
+            'original_amount' => $amount,
+            'export_period_type' => $this->periodType,
+            'original_period_type' => $originalPeriodType,
+            'period_values' => $cashflow->period_values,
+            'decoded_period_values' => $periodValues,
+            'will_convert' => ($this->periodType === 'monthly' && $originalPeriodType === 'weekly') || ($this->periodType === 'weekly' && $originalPeriodType === 'monthly')
+        ]);
+
+        // Apply conversion based on original type and display filter
+        if ($this->periodType === 'monthly' && $originalPeriodType === 'weekly') {
+            // Weekly data displayed as monthly: multiply by 4
+            $convertedAmount = $amount * 4;
+            Log::info('Applied monthly conversion (multiply by 4)', ['new_amount' => $convertedAmount]);
+            return $convertedAmount;
+        } elseif ($this->periodType === 'weekly' && $originalPeriodType === 'monthly') {
+            // Monthly data displayed as weekly: divide by 4
+            $convertedAmount = $amount / 4;
+            Log::info('Applied weekly conversion (divide by 4)', ['new_amount' => $convertedAmount]);
+            return $convertedAmount;
+        } else {
+            // Same type or no conversion needed
+            Log::info('No conversion applied - same period types');
+            return $amount;
+        }
     }
 
     public function array(): array
@@ -76,6 +121,8 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 'month' => $this->month,
                 'branch_id' => $this->branchId,
                 'period' => $this->period,
+                'period_type' => $this->periodType,
+                'week' => $this->week,
             ]);
 
             // Get cashflow data with relationships and only selected GL accounts
@@ -119,6 +166,10 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                         }
                         $actual = (float) ($cf->actual_amount ?? 0);
                         $proj = (float) ($cf->projection_percentage ?? 0);
+
+                        // Apply conversion to the actual amount
+                        $actual = $this->convertAmount($cf, $actual);
+
                         $group[$key]['actual'] += $actual;
                         $current = $actual;
                         for ($i = 0; $i < $period; $i++) {
@@ -294,6 +345,24 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
             // Calculate beginning balance (sum of all receipts)
             $beginningBalance = $all->where('cashflow_type', 'receipts')->sum('actual_amount');
 
+            // Convert beginning balance based on period type
+            $weeklyReceipts = $all->where('cashflow_type', 'receipts')->filter(function($item) {
+                $periodValues = json_decode($item->period_values ?? '{}', true);
+                return isset($periodValues['period_type']) && $periodValues['period_type'] === 'weekly';
+            });
+
+            if ($this->periodType === 'monthly' && $weeklyReceipts->count() > 0) {
+                // Converting from weekly to monthly: multiply by 4
+                $beginningBalance = $beginningBalance * 4;
+                Log::info('Applied monthly conversion to beginning balance (multiply by 4)', ['new_amount' => $beginningBalance]);
+            } elseif ($this->periodType === 'weekly' && $weeklyReceipts->count() === 0) {
+                // Converting from monthly to weekly: divide by 4
+                $beginningBalance = $beginningBalance / 4;
+                Log::info('Applied weekly conversion to beginning balance (divide by 4)', ['new_amount' => $beginningBalance]);
+            } else {
+                Log::info('No conversion applied to beginning balance - same period types');
+            }
+
             // Row 8: CASH BEGINNING BALANCE
             $beginningRow = ['CASH BEGINNING BALANCE', (float) $beginningBalance, ''];
 
@@ -348,13 +417,16 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $actual = (float) ($cashflow->actual_amount ?? 0);
                 $projection = (float) ($cashflow->projection_percentage ?? 0);
 
+                // Convert amount based on period type
+                $actual = $this->convertAmount($cashflow, $actual);
+
                 // Calculate projections with compounding
                 $projections = [];
                 $currentValue = $actual;
 
                 for ($i = 1; $i <= $this->period; $i++) {
-                    // Formula: Previous month value * (1 + projection_percentage/100)
-                    // This creates compounding growth where each month builds on the previous month
+                    // Formula: Previous period value * (1 + projection_percentage/100)
+                    // This creates compounding growth where each period builds on the previous period
                     $currentValue = $currentValue * (1 + ($projection / 100));
                     $projections[] = $currentValue;
                     $receiptsTotal[$i] += $currentValue;
@@ -392,11 +464,14 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                             $childActual = (float) ($childCashflow->actual_amount ?? 0);
                             $childProjection = (float) ($childCashflow->projection_percentage ?? 0);
 
+                            // Convert amount based on period type
+                            $childActual = $this->convertAmount($childCashflow, $childActual);
+
                             $childProjections = [];
                             $childCurrentValue = $childActual;
 
                             for ($i = 1; $i <= $this->period; $i++) {
-                                // Formula: Previous month value * (1 + projection_percentage/100)
+                                // Formula: Previous period value * (1 + projection_percentage/100)
                                 $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
                                 $childProjections[] = $childCurrentValue;
                                 $receiptsTotal[$i] += $childCurrentValue;
@@ -476,13 +551,16 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                 $actual = (float) ($cashflow->actual_amount ?? 0);
                 $projection = (float) ($cashflow->projection_percentage ?? 0);
 
+                // Convert amount based on period type
+                $actual = $this->convertAmount($cashflow, $actual);
+
                 // Calculate projections with compounding
                 $projections = [];
                 $currentValue = $actual;
 
                 for ($i = 1; $i <= $this->period; $i++) {
-                    // Formula: Previous month value * (1 + projection_percentage/100)
-                    // This creates compounding growth where each month builds on the previous month
+                    // Formula: Previous period value * (1 + projection_percentage/100)
+                    // This creates compounding growth where each period builds on the previous period
                     $currentValue = $currentValue * (1 + ($projection / 100));
                     $projections[] = $currentValue;
                     $disbursementsTotal[$i] += $currentValue;
@@ -520,11 +598,14 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
                             $childActual = (float) ($childCashflow->actual_amount ?? 0);
                             $childProjection = (float) ($childCashflow->projection_percentage ?? 0);
 
+                            // Convert amount based on period type
+                            $childActual = $this->convertAmount($childCashflow, $childActual);
+
                             $childProjections = [];
                             $childCurrentValue = $childActual;
 
                             for ($i = 1; $i <= $this->period; $i++) {
-                                // Formula: Previous month value * (1 + projection_percentage/100)
+                                // Formula: Previous period value * (1 + projection_percentage/100)
                                 $childCurrentValue = $childCurrentValue * (1 + ($childProjection / 100));
                                 $childProjections[] = $childCurrentValue;
                                 $disbursementsTotal[$i] += $childCurrentValue;
@@ -552,6 +633,25 @@ class CashflowExport implements FromArray, WithHeadings, ShouldAutoSize, WithSty
 
             // Row: TOTAL DISBURSEMENTS
             $totalDisbActual = $all->where('cashflow_type', 'disbursements')->sum('actual_amount');
+
+            // Convert total disbursements based on period type
+            $weeklyDisbursements = $all->where('cashflow_type', 'disbursements')->filter(function($item) {
+                $periodValues = json_decode($item->period_values ?? '{}', true);
+                return isset($periodValues['period_type']) && $periodValues['period_type'] === 'weekly';
+            });
+
+            if ($this->periodType === 'monthly' && $weeklyDisbursements->count() > 0) {
+                // Converting from weekly to monthly: multiply by 4
+                $totalDisbActual = $totalDisbActual * 4;
+                Log::info('Applied monthly conversion to total disbursements (multiply by 4)', ['new_amount' => $totalDisbActual]);
+            } elseif ($this->periodType === 'weekly' && $weeklyDisbursements->count() === 0) {
+                // Converting from monthly to weekly: divide by 4
+                $totalDisbActual = $totalDisbActual / 4;
+                Log::info('Applied weekly conversion to total disbursements (divide by 4)', ['new_amount' => $totalDisbActual]);
+            } else {
+                Log::info('No conversion applied to total disbursements - same period types');
+            }
+
             $tdRow = ['TOTAL DISBURSEMENTS', (float) $totalDisbActual, ''];
 
             for ($i = 1; $i <= $this->period; $i++) {

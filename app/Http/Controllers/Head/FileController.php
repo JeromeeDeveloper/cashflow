@@ -74,21 +74,29 @@ class FileController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'year' => 'required|integer|min:2020|max:2030',
             'month' => 'required|string|max:20',
+            'period_type' => 'required|in:monthly,weekly',
+            'week' => 'nullable|integer|min:1|max:4|required_if:period_type,weekly',
             'description' => 'nullable|string|max:500',
         ]);
 
         try {
-            // Prevent duplicate uploads for the same branch + year + month
-            $alreadyExists = CashflowFile::where('branch_id', $request->branch_id)
+            // Prevent duplicate uploads for the same branch + year + month + period_type + week
+            $query = CashflowFile::where('branch_id', $request->branch_id)
                 ->where('year', $request->year)
                 ->where('month', $request->month)
-                ->whereIn('status', ['pending', 'processing', 'processed'])
-                ->exists();
+                ->where('period_type', $request->period_type);
+
+            if ($request->period_type === 'weekly') {
+                $query->where('week', $request->week);
+            }
+
+            $alreadyExists = $query->whereIn('status', ['pending', 'processing', 'processed'])->exists();
 
             if ($alreadyExists) {
+                $periodText = $request->period_type === 'weekly' ? "Week {$request->week} of {$request->month} {$request->year}" : "{$request->month} {$request->year}";
                 return response()->json([
                     'success' => false,
-                    'message' => "A file has already been uploaded for {$request->month} {$request->year} for this branch.",
+                    'message' => "A file has already been uploaded for {$periodText} for this branch.",
                 ], 422);
             }
 
@@ -107,6 +115,8 @@ class FileController extends Controller
                 'file_type' => 'cashflow',
                 'year' => $request->year,
                 'month' => $request->month,
+                'period_type' => $request->period_type,
+                'week' => $request->period_type === 'weekly' ? $request->week : null,
                 'branch_id' => $request->branch_id,
                 'uploaded_by' => Auth::user()->name,
                 'status' => 'processing',
@@ -123,7 +133,7 @@ class FileController extends Controller
 
                 // Import Excel data for the specific branch
                 Excel::import(
-                    new CashflowImport($cashflowFile, $cashflowFile->branch_id, $cashflowFile->year, $cashflowFile->month),
+                    new CashflowImport($cashflowFile, $cashflowFile->branch_id, $cashflowFile->year, $cashflowFile->month, $cashflowFile->period_type, $cashflowFile->week),
                     $filePath
                 );
 
@@ -309,7 +319,7 @@ class FileController extends Controller
 
             // Import Excel data for the specific branch
             Excel::import(
-                new CashflowImport($cashflowFile, $cashflowFile->branch_id, $cashflowFile->year, $cashflowFile->month),
+                new CashflowImport($cashflowFile, $cashflowFile->branch_id, $cashflowFile->year, $cashflowFile->month, $cashflowFile->period_type, $cashflowFile->week),
                 $filePath
             );
 
