@@ -48,7 +48,7 @@
                                     <!-- Table Filters -->
                                     <div class="input-group" style="max-width: 280px;">
                                         <span class="input-group-text bg-light"><i class="bi bi-calendar3"></i></span>
-                                        <input type="month" id="table_start_period" class="form-control" value="{{ date('Y-m') }}">
+                                        <input type="month" id="table_start_period" class="form-control" value="{{ $currentYear }}-{{ str_pad(array_search($currentMonth, ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']) + 1, 2, '0', STR_PAD_LEFT) }}">
                                     </div>
                                     <select id="table_branch_filter" class="form-select" style="max-width: 180px;">
                                         <option value="">All Branches</option>
@@ -307,7 +307,8 @@
             if (lastLoadedCashflows.length > 0) {
                 updateTable(lastLoadedCashflows);
             } else {
-                loadCashflows();
+                // Check if current filter has data, if not, find the most recent month with data
+                checkAndAdjustFilter();
             }
 
 
@@ -380,7 +381,7 @@
 
             function showExportConfirmation() {
                 const monthNames = ['January', 'February', 'March', 'April', 'May', 'June','July', 'August', 'September', 'October', 'November', 'December'];
-                const currentMonthValue = document.getElementById('table_start_period').value || '{{ date('Y-m') }}';
+                const currentMonthValue = document.getElementById('table_start_period').value || '{{ $currentYear }}-{{ str_pad(array_search($currentMonth, ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']) + 1, 2, '0', STR_PAD_LEFT) }}';
                 const [curYear, curMonth] = currentMonthValue.split('-');
                 const currentBranchId = document.getElementById('table_branch_filter').value || '';
                 const currentPeriod = document.getElementById('table_period').value || '3';
@@ -466,6 +467,95 @@
                     .catch(error => {
                         console.error('Error loading cashflows:', error);
                         showAlert('Error loading cashflows', 'error');
+                    });
+            }
+
+            function checkAndAdjustFilter() {
+                const monthInput = document.getElementById('table_start_period');
+                const branchFilter = document.getElementById('table_branch_filter');
+
+                const [year, month] = monthInput.value.split('-');
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+
+                const params = new URLSearchParams({
+                    year: year,
+                    month: monthNames[parseInt(month) - 1]
+                });
+                if (branchFilter.value) {
+                    params.set('branch_id', branchFilter.value);
+                }
+
+                fetch(`{{ route('head.cashflows.index') }}?${params}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            lastLoadedCashflows = Array.isArray(data.data) ? data.data : [];
+                            if (lastLoadedCashflows.length === 0) {
+                                // No data for current filter, find the most recent month with data
+                                findMostRecentData();
+                            } else {
+                                updateTable(lastLoadedCashflows);
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error checking filter data:', error);
+                        // If there's an error, try to find most recent data
+                        findMostRecentData();
+                    });
+            }
+
+            function findMostRecentData() {
+                // Get all available data to find the most recent month
+                fetch(`{{ route('head.cashflows.all') }}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+                            // Find the most recent month with data
+                            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                              'July', 'August', 'September', 'October', 'November', 'December'];
+
+                            let mostRecent = null;
+                            data.data.forEach(cashflow => {
+                                const year = parseInt(cashflow.year);
+                                const monthIndex = monthNames.indexOf(cashflow.month);
+
+                                if (!mostRecent ||
+                                    year > mostRecent.year ||
+                                    (year === mostRecent.year && monthIndex > mostRecent.monthIndex)) {
+                                    mostRecent = {
+                                        year: year,
+                                        month: cashflow.month,
+                                        monthIndex: monthIndex
+                                    };
+                                }
+                            });
+
+                            if (mostRecent) {
+                                // Update the filter to the most recent month with data
+                                const monthInput = document.getElementById('table_start_period');
+                                const monthNumber = (mostRecent.monthIndex + 1).toString().padStart(2, '0');
+                                monthInput.value = `${mostRecent.year}-${monthNumber}`;
+
+                                // Reload data with the new filter
+                                loadCashflows();
+
+                                // Show a notification to the user
+                                showAlert(`No data found for the selected period. Showing data for ${mostRecent.month} ${mostRecent.year} instead.`, 'info');
+                            } else {
+                                // No data at all, show empty table
+                                updateTable([]);
+                            }
+                        } else {
+                            // No data at all, show empty table
+                            updateTable([]);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error finding most recent data:', error);
+                        // Show empty table as fallback
+                        updateTable([]);
                     });
             }
 
@@ -898,7 +988,7 @@
             }
 
             function exportCashflowsFromModal() {
-                const monthStr = (document.getElementById('export_start_period').value || '{{ date('Y-m') }}');
+                const monthStr = (document.getElementById('export_start_period').value || '{{ $currentYear }}-{{ str_pad(array_search($currentMonth, ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']) + 1, 2, '0', STR_PAD_LEFT) }}');
                 const [year, month] = monthStr.split('-');
                 const branchId = (document.getElementById('export_branch').value || '');
                 const periodValue = (document.getElementById('export_period').value || '3');

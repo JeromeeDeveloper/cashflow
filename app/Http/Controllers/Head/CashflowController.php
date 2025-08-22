@@ -20,16 +20,41 @@ class CashflowController extends Controller
     public function index(): View
     {
         $branches = Branch::all();
+
+        // Get the most recent month with data
+        $latestData = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->whereHas('glAccount', function ($q) {
+                $q->where('is_selected', 1);
+            })
+            ->select('year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderByRaw("FIELD(month, 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December') DESC")
+            ->first();
+
+        // If no data exists, use current month
+        if (!$latestData) {
+            $currentYear = date('Y');
+            $currentMonth = date('F'); // Full month name
+        } else {
+            $currentYear = $latestData->year;
+            $currentMonth = $latestData->month;
+        }
+
+        // Get cashflows for the determined period
         $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
             ->whereHas('glAccount', function ($q) {
                 $q->where('is_selected', 1);
             })
+            ->where('year', $currentYear)
+            ->where('month', $currentMonth)
             ->orderBy('created_at', 'desc')
             ->get();
 
         // Debug: Log what we're getting
         Log::info('Head cashflow controller - cashflows found:', [
             'count' => $cashflows->count(),
+            'year' => $currentYear,
+            'month' => $currentMonth,
             'sample' => $cashflows->take(3)->map(function($item) {
                 return [
                     'id' => $item->id,
@@ -40,7 +65,7 @@ class CashflowController extends Controller
             })->toArray()
         ]);
 
-        return view('head.cashflow', compact('cashflows', 'branches'));
+        return view('head.cashflow', compact('cashflows', 'branches', 'currentYear', 'currentMonth'));
     }
 
     /**
@@ -74,6 +99,26 @@ class CashflowController extends Controller
         }
 
         $cashflows = $query->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'success' => true,
+            'data' => $cashflows
+        ]);
+    }
+
+    /**
+     * Get all cashflows for finding the most recent data.
+     */
+    public function getAllCashflows(): JsonResponse
+    {
+        $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->whereHas('glAccount', function ($q) {
+                $q->where('is_selected', 1);
+            })
+            ->select('id', 'year', 'month', 'branch_id', 'gl_account_id')
+            ->orderBy('year', 'desc')
+            ->orderByRaw("FIELD(month, 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December') DESC")
+            ->get();
 
         return response()->json([
             'success' => true,

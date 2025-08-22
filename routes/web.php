@@ -80,6 +80,7 @@ Route::prefix('head')->name('head.')->middleware(['auth', 'role:head'])->group(f
 
     // Cashflow CRUD routes
     Route::get('/cashflows', [HeadCashflowController::class, 'getCashflows'])->name('cashflows.index');
+    Route::get('/cashflows/all', [HeadCashflowController::class, 'getAllCashflows'])->name('cashflows.all');
     Route::post('/cashflows', [HeadCashflowController::class, 'store'])->name('cashflows.store');
     Route::get('/cashflows/{cashflow}', [HeadCashflowController::class, 'show'])->name('cashflows.show');
     Route::put('/cashflows/{cashflow}', [HeadCashflowController::class, 'update'])->name('cashflows.update');
@@ -106,6 +107,7 @@ Route::prefix('branch')->name('branch.')->middleware(['auth', 'role:branch'])->g
 
     // Branch Cashflow routes (read-only)
     Route::get('/cashflows', [BranchCashflowController::class, 'getCashflows'])->name('cashflows.index');
+    Route::get('/cashflows/all', [BranchCashflowController::class, 'getAllCashflows'])->name('cashflows.all');
     Route::get('/cashflows/{cashflow}', [BranchCashflowController::class, 'show'])->name('cashflows.show');
     Route::put('/cashflows/{cashflow}', [BranchCashflowController::class, 'update'])->name('cashflows.update');
     Route::delete('/cashflows/{cashflow}', [BranchCashflowController::class, 'destroy'])->name('cashflows.destroy');

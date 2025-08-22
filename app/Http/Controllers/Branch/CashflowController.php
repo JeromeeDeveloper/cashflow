@@ -26,15 +26,38 @@ class CashflowController extends Controller
             abort(403, 'User is not associated with any branch.');
         }
 
+        // Get the most recent month with data for this branch
+        $latestData = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->where('branch_id', $branch->id)
+            ->whereHas('glAccount', function ($q) {
+                $q->where('is_selected', 1);
+            })
+            ->select('year', 'month')
+            ->orderBy('year', 'desc')
+            ->orderByRaw("FIELD(month, 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December') DESC")
+            ->first();
+
+        // If no data exists, use current month
+        if (!$latestData) {
+            $currentYear = date('Y');
+            $currentMonth = date('F'); // Full month name
+        } else {
+            $currentYear = $latestData->year;
+            $currentMonth = $latestData->month;
+        }
+
+        // Get cashflows for the determined period
         $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
             ->where('branch_id', $branch->id)
             ->whereHas('glAccount', function ($q) {
                 $q->where('is_selected', 1);
             })
+            ->where('year', $currentYear)
+            ->where('month', $currentMonth)
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('branch.cashflow', compact('cashflows', 'branch'));
+        return view('branch.cashflow', compact('cashflows', 'branch', 'currentYear', 'currentMonth'));
     }
 
     /**
@@ -86,6 +109,36 @@ class CashflowController extends Controller
                 ];
             })->toArray()
         ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $cashflows
+        ]);
+    }
+
+    /**
+     * Get all cashflows for finding the most recent data.
+     */
+    public function getAllCashflows(): JsonResponse
+    {
+        $branchId = optional(Auth::user()->branch)->id;
+
+        if (!$branchId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User is not associated with any branch.'
+            ], 403);
+        }
+
+        $cashflows = Cashflow::with(['branch', 'cashflowFile', 'glAccount'])
+            ->where('branch_id', $branchId)
+            ->whereHas('glAccount', function ($q) {
+                $q->where('is_selected', 1);
+            })
+            ->select('id', 'year', 'month', 'branch_id', 'gl_account_id')
+            ->orderBy('year', 'desc')
+            ->orderByRaw("FIELD(month, 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December') DESC")
+            ->get();
 
         return response()->json([
             'success' => true,
