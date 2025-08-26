@@ -308,11 +308,12 @@
                                 </button>
                                 <div class="d-flex align-items-center flex-wrap gap-2 justify-content-end">
                                     <!-- Import -->
-                                    <form action="{{ route('admin.gl-accounts.import') }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+                                    <form action="{{ route('admin.gl-accounts.import') }}" method="POST" enctype="multipart/form-data" class="d-flex align-items-center gap-2" id="adminImportForm">
                                         @csrf
-                                        <input type="file" name="file" accept=".xlsx,.xls,.csv" class="form-control" style="max-width: 260px;" required>
-                                        <button type="submit" class="btn btn-outline-primary">
-                                            <i class="bi bi-upload me-2"></i>Import Excel
+                                        <input type="file" name="file" accept=".xlsx,.xls,.csv" class="form-control" style="max-width: 260px;" required id="adminImportFile">
+                                        <button type="submit" class="btn btn-outline-primary" id="adminImportBtn">
+                                            <span class="btn-text"><i class="bi bi-upload me-2"></i>Import Excel</span>
+                                            <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true" id="adminImportSpinner"></span>
                                         </button>
                                     </form>
                                     <!-- Search -->
@@ -1148,6 +1149,20 @@
     <script src="{{ asset('assets/js/main.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Import loader (Admin)
+            const adminImportForm = document.getElementById('adminImportForm');
+            if (adminImportForm) {
+                adminImportForm.addEventListener('submit', function() {
+                    const btn = document.getElementById('adminImportBtn');
+                    const spinner = document.getElementById('adminImportSpinner');
+                    const fileInput = document.getElementById('adminImportFile');
+                    if (btn && spinner && fileInput) {
+                        btn.disabled = true;
+                        fileInput.disabled = true;
+                        spinner.classList.remove('d-none');
+                    }
+                });
+            }
             // CSRF token for Laravel
             const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
