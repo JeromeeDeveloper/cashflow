@@ -64,12 +64,14 @@ class GLAccountsImport implements ToCollection, WithHeadingRow
 
             try {
                 $result = GLAccount::updateOrCreate(
-                    ['account_code' => $accountCode],
+                    [
+                        'account_code' => $accountCode,
+                        'cashflow_type' => 'disbursements' // Use composite key: account_code + cashflow_type
+                    ],
                     [
                         'account_name' => $accountName,
                         'category' => $category !== '' ? $category : null,
                         'level' => $level !== null && $level !== '' ? (string)$level : null,
-                        'cashflow_type' => 'disbursements', // Default value
                         'account_type' => 'single', // Default value
                         'is_active' => true, // Default value
                         'is_selected' => false, // Default value
