@@ -279,6 +279,7 @@ class GLAccountsController extends Controller
             'account_code' => 'required|string|max:50',
             'account_name' => 'required|string|max:255',
             'cashflow_type' => 'required|in:receipts,disbursements',
+            'level' => 'sometimes|string|max:10',
             'is_active' => 'sometimes|boolean',
             'is_selected' => 'sometimes|boolean'
         ]);
@@ -302,10 +303,10 @@ class GLAccountsController extends Controller
             'account_code' => $validated['account_code'],
             'account_name' => $validated['account_name'],
             'cashflow_type' => $validated['cashflow_type'],
+            'level' => $validated['level'] ?? 1,
             'is_active' => $request->boolean('is_active', true),
             'is_selected' => $request->boolean('is_selected', false),
             'account_type' => 'single',
-            'level' => 1,
             'parent_id' => null,
         ]);
 
@@ -326,6 +327,7 @@ class GLAccountsController extends Controller
             'account_name' => 'sometimes|required|string|max:255',
             // account_type is managed by relationship actions; not editable in this form
             'cashflow_type' => 'sometimes|required|in:receipts,disbursements',
+            'level' => 'sometimes|string|max:10',
             // parent_id is managed via relationship actions; not editable in this form
             'is_active' => 'sometimes|boolean',
             'is_selected' => 'sometimes|boolean'
@@ -369,6 +371,9 @@ class GLAccountsController extends Controller
         }
         if ($request->has('is_selected')) {
             $updateData['is_selected'] = $request->boolean('is_selected');
+        }
+        if ($request->has('level')) {
+            $updateData['level'] = $validated['level'];
         }
         // Do not update account_type here
         $glAccount->update($updateData);

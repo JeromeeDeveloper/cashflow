@@ -837,6 +837,10 @@
                                         </select>
                                     </div>
                                     <div class="col-md-6">
+                                        <label for="add_level" class="form-label">Level</label>
+                                        <input type="text" class="form-control" id="add_level" name="level" value="1" placeholder="Enter level">
+                                    </div>
+                                    <div class="col-md-6">
                                         <label class="form-label">Status</label>
                                         <div class="form-check form-switch">
                                             <input class="form-check-input" type="checkbox" id="add_is_active" name="is_active" checked>
@@ -850,6 +854,7 @@
                                             <label class="form-check-label" for="add_is_selected">Selected for Cashflow</label>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -947,6 +952,10 @@
                                             <option value="disbursements">Disbursements</option>
                                         </select>
                                     </div>
+                                    <div class="col-md-6">
+                                        <label for="edit_level" class="form-label">Level</label>
+                                        <input type="text" class="form-control" id="edit_level" name="level" placeholder="Enter level">
+                                    </div>
 
                                     <div class="col-md-6">
                                         <label for="edit_is_active" class="form-label">Status</label>
@@ -962,6 +971,7 @@
                                             <label class="form-check-label" for="edit_is_selected">Selected for Cashflow</label>
                                         </div>
                                     </div>
+
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -1696,6 +1706,7 @@
                         // Account type is managed via relationships and hidden in the edit form
                         document.getElementById('edit_cashflow_type').value = account.cashflow_type || 'disbursements';
                         // Parent is managed via relationship actions; no parent field in edit form
+                        document.getElementById('edit_level').value = account.level || '1';
                         document.getElementById('edit_is_active').checked = account.is_active;
                         document.getElementById('edit_is_selected').checked = account.is_selected;
 
@@ -1937,6 +1948,7 @@
                     account_code: formData.get('account_code')?.toString().trim(),
                     account_name: formData.get('account_name')?.toString().trim(),
                     cashflow_type: formData.get('edit_cashflow_type') ? formData.get('edit_cashflow_type') : formData.get('cashflow_type'),
+                    level: formData.get('level'),
                     is_active: document.getElementById('edit_is_active').checked,
                     is_selected: document.getElementById('edit_is_selected').checked,
                 };
@@ -1983,6 +1995,7 @@
                         account_code: formData.get('account_code')?.toString().trim(),
                         account_name: formData.get('account_name')?.toString().trim(),
                         cashflow_type: formData.get('cashflow_type'),
+                        level: formData.get('level'),
                         is_active: document.getElementById('add_is_active').checked,
                         is_selected: document.getElementById('add_is_selected').checked,
                     };
