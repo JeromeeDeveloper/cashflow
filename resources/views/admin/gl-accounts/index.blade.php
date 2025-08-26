@@ -1152,15 +1152,83 @@
             // Import loader (Admin)
             const adminImportForm = document.getElementById('adminImportForm');
             if (adminImportForm) {
-                adminImportForm.addEventListener('submit', function() {
+                adminImportForm.addEventListener('submit', function(e) {
+                    e.preventDefault(); // Prevent default form submission
+
                     const btn = document.getElementById('adminImportBtn');
                     const spinner = document.getElementById('adminImportSpinner');
                     const fileInput = document.getElementById('adminImportFile');
+
                     if (btn && spinner && fileInput) {
                         btn.disabled = true;
                         fileInput.disabled = true;
                         spinner.classList.remove('d-none');
                     }
+
+                                        // Create FormData and submit via AJAX
+                    const formData = new FormData();
+
+                    // Explicitly add the file to FormData
+                    if (fileInput.files[0]) {
+                        formData.append('file', fileInput.files[0]);
+                        console.log('File added to FormData:', fileInput.files[0].name);
+                    }
+
+                    // Add CSRF token
+                    formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+                    // Debug: Log what's in the FormData
+                    console.log('FormData contents:');
+                    for (let [key, value] of formData.entries()) {
+                        console.log(key, value);
+                    }
+
+                    // Debug: Check if file input has a file
+                    console.log('File input value:', fileInput.files[0]);
+                    console.log('File input name:', fileInput.name);
+
+                    fetch(this.action, {
+                        method: 'POST',
+                        body: formData
+                        // Don't set headers for FormData - CSRF token is already in the form
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Import Successful!',
+                                text: data.message,
+                                confirmButtonText: 'OK'
+                            }).then(() => {
+                                location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Import Failed',
+                                text: data.message,
+                                confirmButtonText: 'OK'
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Import Failed',
+                            text: 'An error occurred during import. Please try again.',
+                            confirmButtonText: 'OK'
+                        });
+                    })
+                    .finally(() => {
+                        // Reset button state
+                        if (btn && spinner && fileInput) {
+                            btn.disabled = false;
+                            fileInput.disabled = false;
+                            spinner.classList.add('d-none');
+                        }
+                    });
                 });
             }
             // CSRF token for Laravel

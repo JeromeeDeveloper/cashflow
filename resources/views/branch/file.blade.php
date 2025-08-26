@@ -372,7 +372,18 @@
                         location.reload();
                     });
                 } else {
-                    throw new Error(data.message || 'Upload failed');
+                    // Check if it's a validation error
+                    if (data.type === 'validation_error') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'GL Account Validation Failed',
+                            html: data.message.replace(/\n/g, '<br>'),
+                            confirmButtonText: 'OK',
+                            width: '600px'
+                        });
+                    } else {
+                        throw new Error(data.message || 'Upload failed');
+                    }
                 }
             })
             .catch(error => {

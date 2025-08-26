@@ -153,6 +153,15 @@ class FileController extends Controller
                     'description' => 'Auto-processing failed: ' . $e->getMessage()
                 ]);
 
+                // Check if it's a validation error from CashflowImport
+                if (str_contains($e->getMessage(), 'Validation failed!')) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage(),
+                        'type' => 'validation_error'
+                    ], 422);
+                }
+
                 return response()->json([
                     'success' => false,
                     'message' => 'File uploaded but processing failed: ' . $e->getMessage()

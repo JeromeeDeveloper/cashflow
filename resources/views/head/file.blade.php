@@ -642,13 +642,24 @@
                             location.reload();
                         }, 1500);
                     } else {
-                        // Show error message
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Upload Failed',
-                            text: data.message || 'An error occurred while uploading the file',
-                            confirmButtonText: 'OK'
-                        });
+                        // Check if it's a validation error
+                        if (data.type === 'validation_error') {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'GL Account Validation Failed',
+                                html: data.message.replace(/\n/g, '<br>'),
+                                confirmButtonText: 'OK',
+                                width: '600px'
+                            });
+                        } else {
+                            // Show regular error message
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Upload Failed',
+                                text: data.message || 'An error occurred while uploading the file',
+                                confirmButtonText: 'OK'
+                            });
+                        }
                     }
                 })
                 .catch(error => {

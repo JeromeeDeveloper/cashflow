@@ -7,6 +7,7 @@ use App\Models\GLAccount;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Imports\GLAccountsImport;
 
@@ -196,13 +197,62 @@ class GLAccountsController extends Controller
      */
     public function import(Request $request)
     {
-        $request->validate([
-            'file' => 'required|file|mimes:xlsx,xls,csv',
-        ]);
+        try {
+            Log::info('GL Accounts import request received', [
+                'request_data' => $request->all(),
+                'request_files' => $request->allFiles(),
+                'has_file' => $request->hasFile('file'),
+                'file_validation' => $request->file('file') ? [
+                    'name' => $request->file('file')->getClientOriginalName(),
+                    'size' => $request->file('file')->getSize(),
+                    'mime_type' => $request->file('file')->getMimeType()
+                ] : 'No file',
+                'content_type' => $request->header('Content-Type'),
+                'user_agent' => $request->header('User-Agent')
+            ]);
 
-        Excel::import(new GLAccountsImport(), $request->file('file'));
+            // Additional debugging before validation
+            Log::info('Before validation', [
+                'all_input' => $request->all(),
+                'all_files' => $request->allFiles(),
+                'file_input' => $request->input('file'),
+                'has_file' => $request->hasFile('file'),
+                'file_validation_rules' => 'required|file|mimes:xlsx,xls,csv'
+            ]);
 
-        return redirect()->back()->with('success', 'GL Accounts imported successfully.');
+            $request->validate([
+                'file' => 'required|file|mimes:xlsx,xls,csv',
+            ]);
+
+            $file = $request->file('file');
+
+            // Log the import attempt
+            Log::info('GL Accounts import started', [
+                'filename' => $file->getClientOriginalName(),
+                'size' => $file->getSize(),
+                'mime_type' => $file->getMimeType()
+            ]);
+
+            Excel::import(new GLAccountsImport(), $file);
+
+            Log::info('GL Accounts import completed successfully');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'GL Accounts imported successfully.'
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error('GL Accounts import failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Import failed: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
